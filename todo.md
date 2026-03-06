@@ -127,3 +127,26 @@
 - [x] Atualizar VITE_APP_TITLE
 - [x] Atualizar logo e favicon
 - [x] Atualizar todas as referências de nome no código
+
+## v4 — Sistema de Usuários Locais (Auth Próprio)
+
+### Schema / Banco de Dados
+- [ ] Tabela org_users (slots fixos por organização: username, passwordHash, displayName, slot)
+- [ ] Tabela org_sessions (sessões locais independentes do OAuth Manus)
+- [ ] pnpm db:push para migrar
+
+### Backend
+- [ ] Endpoint de login local (POST /api/local-auth/login)
+- [ ] Endpoint de logout local
+- [ ] Router: orgUsers.list (admin lista slots da organização)
+- [ ] Router: orgUsers.create (admin cria slots User1..UserN com senha padrão)
+- [ ] Router: orgUsers.resetPassword (admin reseta senha de qualquer slot)
+- [ ] Router: orgUsers.updateProfile (usuário altera próprio nome e senha)
+- [ ] Middleware de sessão local (JWT próprio para org_users)
+
+### Frontend
+- [ ] Tela de login local (username + senha, sem OAuth)
+- [ ] Painel de gestão de usuários (admin): listar slots, criar lote, resetar senha
+- [ ] Tela de perfil do usuário: alterar nome e senha
+- [ ] Integrar auth local em todas as rotas protegidas
+- [ ] Ajustar DashboardLayout para exibir displayName e slot do usuário local

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FileText, Download, Printer, TrendingUp, Target, Activity, MessageSquare, Calendar, Zap, Star, CheckCircle2, AlertTriangle, BarChart3 } from "lucide-react";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 
 function formatCurrency(value: string | number | null | undefined) {
   if (!value) return "R$ 0,00";
@@ -40,7 +40,7 @@ const ACTION_STATUS: Record<string, string> = {
 };
 
 export default function Report() {
-  const { user } = useAuth();
+  const { user } = useLocalAuth();
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
 
@@ -137,7 +137,7 @@ export default function Report() {
                     </div>
                     <h2 className="text-2xl md:text-3xl font-bold">Relatório Semanal de Performance</h2>
                     <p className="mt-2 opacity-80">
-                      {rd.user?.name ?? user?.name ?? "Vendedor"} · {formatDate(rd.report.weekStart)} a {formatDate(rd.report.weekEnd)}
+                      {rd.user?.name ?? user?.displayName ?? user?.username ?? "Vendedor"} · {formatDate(rd.report.weekStart)} a {formatDate(rd.report.weekEnd)}
                     </p>
                   </div>
                   {rd.checkin && (

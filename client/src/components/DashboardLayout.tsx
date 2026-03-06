@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,7 +20,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   BarChart3,
@@ -31,6 +29,7 @@ import {
   ChevronDown,
   Cog,
   FileText,
+  KeyRound,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -39,6 +38,7 @@ import {
   Shield,
   Target,
   TrendingUp,
+  User,
   Users,
   Zap,
   CheckCircle2,
@@ -46,7 +46,7 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
-import { Button } from "./ui/button";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 import { trpc } from "@/lib/trpc";
 
 const sellerMenuItems = [
@@ -63,6 +63,7 @@ const sellerMenuItems = [
 
 const adminMenuItems = [
   { icon: Shield, label: "Painel Admin", path: "/admin" },
+  { icon: Users, label: "Usuários", path: "/users" },
   { icon: Palette, label: "Personalização", path: "/customization" },
   { icon: Cog, label: "Configurações", path: "/settings" },
 ];
@@ -77,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user } = useLocalAuth();
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -87,34 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <DashboardLayoutSkeleton />;
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0a0f1e]">
-        <div className="flex flex-col items-center gap-6 p-8 max-w-sm w-full text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#c9a84c]/20 flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-[#c9a84c]" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Biz Management</h1>
-            <p className="text-[#c9a84c] font-semibold">Follow</p>
-            <p className="text-slate-400 text-sm mt-3">
-              Faça login para acessar sua plataforma de gestão de negócios.
-            </p>
-          </div>
-          <Button
-            onClick={() => { window.location.href = getLoginUrl(); }}
-            size="lg"
-            className="w-full bg-[#c9a84c] hover:bg-[#b8943d] text-[#0a0f1e] font-bold"
-          >
-            Entrar na Plataforma
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to onboarding if user has no organization (and is not super_admin)
-  if (!user.organizationId && user.role !== "super_admin") {
-    navigate("/onboarding");
+    navigate("/login");
     return null;
   }
 
@@ -134,19 +108,16 @@ function DashboardLayoutContent({
   children: React.ReactNode;
   setSidebarWidth: (width: number) => void;
 }) {
-  const { user, logout } = useAuth();
+  const { user, logout } = useLocalAuth();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
-  const isSuperAdmin = user?.role === "super_admin";
-
-  const { data: org } = trpc.organizations.mine.useQuery(undefined, {
-    enabled: !!user?.organizationId,
-  });
+  const isAdmin = user?.role === "admin";
+  // org query uses the Manus OAuth user context — for local users we use organizationId from localAuth
+  const { data: org } = trpc.organizations.mine.useQuery(undefined, { enabled: false });
 
   const activeItem = [...sellerMenuItems, ...adminMenuItems].find(
     (item) => location === item.path || location.startsWith(item.path + "/")
@@ -180,16 +151,17 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    : "U";
-
-  const roleLabel = isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Vendedor";
-  const roleBadgeClass = isSuperAdmin
+  const displayName = user?.displayName ?? user?.username ?? "Usuário";
+  const initials = displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
+  const roleLabel = isAdmin ? "Admin" : "Vendedor";
+  const roleBadgeClass = isAdmin
     ? "border-[#c9a84c]/50 text-[#c9a84c]"
-    : isAdmin
-    ? "border-blue-400/50 text-blue-400"
     : "border-sidebar-border text-sidebar-foreground/60";
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
 
   return (
     <>
@@ -208,7 +180,7 @@ function DashboardLayoutContent({
               {!isCollapsed && (
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded-md bg-sidebar-primary flex items-center justify-center shrink-0">
-                    <Building2 className="w-3.5 h-3.5 text-sidebar-primary-foreground" />
+                    <TrendingUp className="w-3.5 h-3.5 text-sidebar-primary-foreground" />
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-sidebar-foreground tracking-tight truncate text-sm leading-none">
@@ -222,11 +194,13 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           {/* Org info */}
-          {!isCollapsed && org && (
+          {!isCollapsed && (
             <div className="px-4 py-2.5 border-b border-sidebar-border/50">
               <div className="flex items-center gap-2">
                 <Building2 className="w-3.5 h-3.5 text-sidebar-foreground/40 shrink-0" />
-                <span className="text-xs text-sidebar-foreground/60 truncate">{org.name}</span>
+                <span className="text-xs text-sidebar-foreground/60 truncate">
+                  {org?.name ?? `Organização #${user?.organizationId}`}
+                </span>
               </div>
             </div>
           )}
@@ -295,25 +269,6 @@ function DashboardLayoutContent({
                       </SidebarMenuItem>
                     );
                   })}
-
-                  {/* Super Admin link */}
-                  {isSuperAdmin && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={location === "/super-admin"}
-                        onClick={() => setLocation("/super-admin")}
-                        tooltip="Super Admin"
-                        className={`h-9 rounded-lg font-normal transition-all ${
-                          location === "/super-admin"
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                        }`}
-                      >
-                        <Users className="h-4 w-4 shrink-0 text-[#c9a84c]" />
-                        <span className="text-sm">Super Admin</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
                 </SidebarMenu>
               </>
             )}
@@ -332,7 +287,7 @@ function DashboardLayoutContent({
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-sidebar-foreground truncate leading-none">
-                        {user?.name || "Usuário"}
+                        {displayName}
                       </p>
                       <div className="flex items-center gap-1.5 mt-1">
                         <Badge
@@ -341,6 +296,9 @@ function DashboardLayoutContent({
                         >
                           {roleLabel}
                         </Badge>
+                        <span className="text-[10px] text-sidebar-foreground/40 truncate">
+                          {user?.username}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -349,18 +307,21 @@ function DashboardLayoutContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-52 mb-1">
                 <div className="px-3 py-2">
-                  <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  {org && <p className="text-xs text-muted-foreground mt-0.5">{org.name}</p>}
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <p className="text-xs text-muted-foreground">{user?.username}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Slot #{user?.slot}</p>
                 </div>
                 <DropdownMenuSeparator />
-                {isSuperAdmin && (
-                  <DropdownMenuItem onClick={() => setLocation("/super-admin")} className="cursor-pointer">
-                    <Shield className="mr-2 h-4 w-4 text-[#c9a84c]" />
-                    <span>Super Admin</span>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
+                <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Meu Perfil</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  <span>Alterar Senha</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sair
                 </DropdownMenuItem>
@@ -389,12 +350,21 @@ function DashboardLayoutContent({
                 <span className="font-semibold text-foreground text-sm">
                   {activeItem?.label ?? "Biz Management Follow"}
                 </span>
-                {org && <p className="text-xs text-muted-foreground leading-none mt-0.5">{org.name}</p>}
+                <p className="text-xs text-muted-foreground leading-none mt-0.5">
+                  {displayName}
+                </p>
               </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
         )}
-        <main className="flex-1 min-h-screen">{children}</main>
+        <main className="flex-1 min-h-screen p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </>
   );

@@ -15,7 +15,7 @@ import {
   Plus, Pencil, Trash2, TrendingUp, DollarSign, Target, Clock,
   User, Phone, Mail, MapPin, Package, Calendar, ChevronRight, BarChart3,
 } from "lucide-react";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 
 const STATUS_CONFIG = {
   prospecting: { label: "Prospecção", color: "bg-blue-100 text-blue-800 border-blue-200", dot: "bg-blue-500", kanbanBg: "bg-blue-50 border-blue-200" },
@@ -73,7 +73,7 @@ function formatDate(dateStr: string | Date | null | undefined) {
 }
 
 export default function Deals() {
-  const { user } = useAuth();
+  const { user } = useLocalAuth();
   const utils = trpc.useUtils();
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [filterStatus, setFilterStatus] = useState<string>("all");

@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +54,7 @@ const STAGE_COLORS: Record<string, string> = {
 };
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user } = useLocalAuth();
   const [, navigate] = useLocation();
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
 

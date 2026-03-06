@@ -1,4 +1,4 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, isAuthenticated } = useLocalAuth();
   const [, navigate] = useLocation();
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user } = useLocalAuth();
   const isAdmin = user?.role === "admin";
 
   const { data: products } = trpc.config.getProducts.useQuery();
@@ -88,12 +88,12 @@ export default function Settings() {
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-xl font-bold text-primary">
-                  {(user?.name || "U").charAt(0).toUpperCase()}
+                  {(user?.displayName || user?.username || "U").charAt(0).toUpperCase()}
                 </span>
               </div>
               <div>
-                <p className="font-semibold text-foreground">{user?.name || "Usuário"}</p>
-                <p className="text-sm text-muted-foreground">{user?.email || ""}</p>
+                <p className="font-semibold text-foreground">{user?.displayName || user?.username || "Usuário"}</p>
+                <p className="text-sm text-muted-foreground">{user?.username || ""}</p>
                 <Badge
                   variant="outline"
                   className={`text-xs mt-1 ${user?.role === "admin" ? "text-yellow-600 border-yellow-300" : "text-blue-600 border-blue-300"}`}

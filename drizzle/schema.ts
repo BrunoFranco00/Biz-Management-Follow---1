@@ -67,6 +67,36 @@ export const organizationInvites = mysqlTable("organization_invites", {
 
 export type OrganizationInvite = typeof organizationInvites.$inferSelect;
 
+// ─── ORG USERS (slots fixos por organização — auth local) ───────────────────
+export const orgUsers = mysqlTable("org_users", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  slot: int("slot").notNull(),                          // 1..N (User1, User2...)
+  username: varchar("username", { length: 50 }).notNull().unique(), // ex: bfagro_user1
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  displayName: varchar("displayName", { length: 100 }), // nome real da pessoa
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  lastSignedIn: timestamp("lastSignedIn"),
+});
+
+export type OrgUser = typeof orgUsers.$inferSelect;
+export type InsertOrgUser = typeof orgUsers.$inferInsert;
+
+// ─── ORG SESSIONS (sessões locais para org_users) ─────────────────────────────
+export const orgSessions = mysqlTable("org_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  orgUserId: int("orgUserId").notNull(),
+  organizationId: int("organizationId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OrgSession = typeof orgSessions.$inferSelect;
+
 // ─── CONFIGURATION (per organization) ────────────────────────────────────────
 export const products = mysqlTable("products", {
   id: int("id").autoincrement().primaryKey(),

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,7 @@ const SEGMENT_LABELS: Record<string, { label: string; icon: any; color: string }
 };
 
 export default function SuperAdmin() {
-  const { user } = useAuth();
+  const { user } = useLocalAuth();
   const [, navigate] = useLocation();
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -34,7 +34,7 @@ export default function SuperAdmin() {
   const [assignUserId, setAssignUserId] = useState<string>("");
   const [assignRole, setAssignRole] = useState<"user" | "admin">("user");
 
-  if (user?.role !== "super_admin") {
+  if (user?.role !== ("super_admin" as string)) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
         <div className="text-center">

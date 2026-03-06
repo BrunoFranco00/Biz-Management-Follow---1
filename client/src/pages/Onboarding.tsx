@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocalAuth } from "@/contexts/LocalAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ const SEGMENTS = [
 
 export default function Onboarding() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user } = useLocalAuth();
   const [step, setStep] = useState<"join" | "create">("join");
   const [inviteToken, setInviteToken] = useState("");
   const [orgName, setOrgName] = useState("");
@@ -66,7 +66,7 @@ export default function Onboarding() {
               <p className="text-[#c9a84c] text-sm font-medium">Follow</p>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-white">Bem-vindo, {user?.name?.split(" ")[0]}!</h2>
+          <h2 className="text-2xl font-bold text-white">Bem-vindo, {(user?.displayName ?? user?.username ?? 'Usuário').split(' ')[0]}!</h2>
           <p className="text-slate-400 mt-1">Para começar, você precisa fazer parte de uma organização.</p>
         </div>
 
