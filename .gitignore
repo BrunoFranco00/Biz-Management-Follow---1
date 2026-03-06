@@ -113,3 +113,8 @@ temp/
 .manus/
 .manus-logs/
 client/public/__manus__/
+
+# Arquivos temporários de desenvolvimento
+check_users.ts
+*.bak
+vite.config.ts.bak
