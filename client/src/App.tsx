@@ -17,6 +17,8 @@ import Deals from "./pages/Deals";
 import Customization from "./pages/Customization";
 import Checkin from "./pages/Checkin";
 import Report from "./pages/Report";
+import Onboarding from "./pages/Onboarding";
+import SuperAdmin from "./pages/SuperAdmin";
 
 function Router() {
   return (
@@ -34,6 +36,9 @@ function Router() {
       <Route path="/customization" component={Customization} />
       <Route path="/checkin" component={Checkin} />
       <Route path="/report" component={Report} />
+      <Route path="/onboarding" component={Onboarding} />
+      <Route path="/super-admin" component={SuperAdmin} />
+      <Route path="/join" component={Onboarding} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

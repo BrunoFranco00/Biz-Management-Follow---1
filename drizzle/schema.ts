@@ -10,6 +10,31 @@ import {
   date,
 } from "drizzle-orm/mysql-core";
 
+// ─── ORGANIZATIONS (Multi-tenant foundation) ──────────────────────────────────
+export const organizations = mysqlTable("organizations", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  segment: mysqlEnum("segment", [
+    "aesthetics_clinic",
+    "agribusiness",
+    "generic",
+    "real_estate",
+    "tech",
+    "retail",
+    "healthcare",
+    "education",
+  ]).default("generic").notNull(),
+  logoUrl: text("logoUrl"),
+  active: boolean("active").default(true).notNull(),
+  maxUsers: int("maxUsers").default(10).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = typeof organizations.$inferInsert;
+
 // ─── USERS ────────────────────────────────────────────────────────────────────
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -17,7 +42,9 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "super_admin"]).default("user").notNull(),
+  organizationId: int("organizationId"),   // null = not yet onboarded
+  active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -26,27 +53,58 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// ─── CONFIGURATION ────────────────────────────────────────────────────────────
+// ─── ORGANIZATION INVITES ─────────────────────────────────────────────────────
+export const organizationInvites = mysqlTable("organization_invites", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  accepted: boolean("accepted").default(false).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OrganizationInvite = typeof organizationInvites.$inferSelect;
+
+// ─── CONFIGURATION (per organization) ────────────────────────────────────────
 export const products = mysqlTable("products", {
   id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
+  price: decimal("price", { precision: 15, scale: 2 }),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export const regions = mysqlTable("regions", {
   id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   code: varchar("code", { length: 10 }),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+// ─── SYSTEM LABELS (per organization — personalização) ───────────────────────
+export const systemLabels = mysqlTable("system_labels", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  labelKey: varchar("labelKey", { length: 100 }).notNull(),
+  labelValue: varchar("labelValue", { length: 200 }).notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SystemLabel = typeof systemLabels.$inferSelect;
+
 // ─── WEEKLY REPORTS ───────────────────────────────────────────────────────────
 export const weeklyReports = mysqlTable("weekly_reports", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   weekStart: date("weekStart").notNull(),
   weekEnd: date("weekEnd").notNull(),
   highlights: text("highlights"),
@@ -60,6 +118,7 @@ export const kpiMetrics = mysqlTable("kpi_metrics", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   metricName: varchar("metricName", { length: 100 }).notNull(),
   target: decimal("target", { precision: 15, scale: 2 }),
   realized: decimal("realized", { precision: 15, scale: 2 }),
@@ -73,6 +132,7 @@ export const salesFunnelEntries = mysqlTable("sales_funnel_entries", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   stage: mysqlEnum("stage", [
     "prospecting",
     "qualification",
@@ -89,6 +149,7 @@ export const salesFunnelEntries = mysqlTable("sales_funnel_entries", {
 export const opportunities = mysqlTable("opportunities", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   clientName: varchar("clientName", { length: 200 }).notNull(),
   value: decimal("value", { precision: 15, scale: 2 }),
   productService: varchar("productService", { length: 200 }),
@@ -126,6 +187,7 @@ export const activities = mysqlTable("activities", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   activityType: mysqlEnum("activityType", [
     "calls",
     "emails",
@@ -143,6 +205,7 @@ export const leadSources = mysqlTable("lead_sources", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   source: mysqlEnum("source", [
     "referral",
     "active_prospecting",
@@ -159,6 +222,7 @@ export const objections = mysqlTable("objections", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   objectionText: text("objectionText").notNull(),
   frequency: int("frequency").default(1),
   responseUsed: text("responseUsed"),
@@ -171,6 +235,7 @@ export const operationalDifficulties = mysqlTable("operational_difficulties", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   difficultyType: mysqlEnum("difficultyType", [
     "crm_issues",
     "lack_of_materials",
@@ -190,6 +255,7 @@ export const weeklyPlans = mysqlTable("weekly_plans", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   metricName: varchar("metricName", { length: 100 }).notNull(),
   target: decimal("target", { precision: 15, scale: 2 }),
   howToAchieve: text("howToAchieve"),
@@ -200,6 +266,7 @@ export const weeklyActions = mysqlTable("weekly_actions", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   priority: int("priority").default(1),
   actionDescription: text("actionDescription").notNull(),
   deadline: date("deadline"),
@@ -211,6 +278,7 @@ export const weeklySupport = mysqlTable("weekly_support", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   supportType: mysqlEnum("supportType", [
     "client_meeting",
     "complex_negotiation",
@@ -227,6 +295,7 @@ export const confidenceLevels = mysqlTable("confidence_levels", {
   id: int("id").autoincrement().primaryKey(),
   reportId: int("reportId").notNull(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   level: mysqlEnum("level", [
     "very_confident",
     "confident",
@@ -242,6 +311,7 @@ export const confidenceLevels = mysqlTable("confidence_levels", {
 export const strategicActions = mysqlTable("strategic_actions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   actionName: varchar("actionName", { length: 300 }).notNull(),
   startDate: date("startDate"),
   description: text("description"),
@@ -253,10 +323,11 @@ export const strategicActions = mysqlTable("strategic_actions", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-// ─── DEALS (Gestão de Negócios) ─────────────────────────────────────────────
+// ─── DEALS (Gestão de Negócios) ───────────────────────────────────────────────
 export const deals = mysqlTable("deals", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   clientName: varchar("clientName", { length: 200 }).notNull(),
   regionId: int("regionId"),
   productId: int("productId"),
@@ -278,20 +349,11 @@ export const deals = mysqlTable("deals", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-// ─── SYSTEM LABELS (Personalização Admin) ────────────────────────────────────
-export const systemLabels = mysqlTable("system_labels", {
-  id: int("id").autoincrement().primaryKey(),
-  labelKey: varchar("labelKey", { length: 100 }).notNull().unique(),
-  labelValue: varchar("labelValue", { length: 200 }).notNull(),
-  category: varchar("category", { length: 50 }).notNull(),
-  description: text("description"),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-// ─── WEEKLY CHECKINS (Check-in Semanal de Performance) ───────────────────────
+// ─── WEEKLY CHECKINS ─────────────────────────────────────────────────────────
 export const weeklyCheckins = mysqlTable("weekly_checkins", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  organizationId: int("organizationId").notNull(),
   reportId: int("reportId").notNull(),
   performanceScore: int("performanceScore"),
   weekHighlight: text("weekHighlight"),
@@ -312,5 +374,4 @@ export type Product = typeof products.$inferSelect;
 export type Region = typeof regions.$inferSelect;
 export type Deal = typeof deals.$inferSelect;
 export type InsertDeal = typeof deals.$inferInsert;
-export type SystemLabel = typeof systemLabels.$inferSelect;
 export type WeeklyCheckin = typeof weeklyCheckins.$inferSelect;

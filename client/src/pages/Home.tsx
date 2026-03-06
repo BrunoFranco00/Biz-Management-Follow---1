@@ -19,9 +19,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate("/dashboard");
+      if (!user?.organizationId && user?.role !== "super_admin") {
+        navigate("/onboarding");
+      } else {
+        navigate("/dashboard");
+      }
     }
-  }, [loading, isAuthenticated, navigate]);
+  }, [loading, isAuthenticated, user, navigate]);
 
   if (loading) {
     return (
@@ -64,7 +68,7 @@ export default function Home() {
               <TrendingUp className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="font-bold text-lg text-foreground tracking-tight">
-              SalesFlow CRM
+              Biz Management Follow
             </span>
           </div>
           <Button
@@ -104,7 +108,7 @@ export default function Home() {
             </h1>
 
             <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-              Substitua suas planilhas por um sistema completo de CRM. Acompanhe
+              Substitua suas planilhas por um sistema completo de gestão. Acompanhe
               oportunidades, atividades, metas e resultados em tempo real.
             </p>
 
@@ -157,8 +161,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-border py-6">
         <div className="container text-center text-sm text-muted-foreground">
-          SalesFlow CRM — Plataforma de Gestão de Vendas
-        </div>
+          Biz Management Follow — Plataforma de Gestão de Negócios        </div>
       </footer>
     </div>
   );

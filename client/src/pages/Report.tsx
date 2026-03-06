@@ -133,7 +133,7 @@ export default function Report() {
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp className="h-6 w-6" />
-                      <span className="text-lg font-bold">SalesFlow CRM</span>
+                      <span className="text-lg font-bold">Biz Management Follow</span>
                     </div>
                     <h2 className="text-2xl md:text-3xl font-bold">Relatório Semanal de Performance</h2>
                     <p className="mt-2 opacity-80">
@@ -371,7 +371,7 @@ export default function Report() {
 
             {/* Footer */}
             <div className="text-center text-xs text-muted-foreground py-4 border-t">
-              Gerado em {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })} · SalesFlow CRM
+              Gerado em {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })} · Biz Management Follow
             </div>
           </div>
         )}

@@ -27,6 +27,7 @@ import {
   BarChart3,
   BookOpen,
   Briefcase,
+  Building2,
   ChevronDown,
   Cog,
   FileText,
@@ -46,6 +47,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
+import { trpc } from "@/lib/trpc";
 
 const sellerMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -76,6 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -85,27 +88,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0f1e]">
         <div className="flex flex-col items-center gap-6 p-8 max-w-sm w-full text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <TrendingUp className="w-8 h-8 text-primary" />
+          <div className="w-16 h-16 rounded-2xl bg-[#c9a84c]/20 flex items-center justify-center">
+            <Building2 className="w-8 h-8 text-[#c9a84c]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">SalesFlow CRM</h1>
-            <p className="text-muted-foreground text-sm">
-              Faça login para acessar sua plataforma de gestão de vendas.
+            <h1 className="text-2xl font-bold text-white mb-1">Biz Management</h1>
+            <p className="text-[#c9a84c] font-semibold">Follow</p>
+            <p className="text-slate-400 text-sm mt-3">
+              Faça login para acessar sua plataforma de gestão de negócios.
             </p>
           </div>
           <Button
             onClick={() => { window.location.href = getLoginUrl(); }}
             size="lg"
-            className="w-full bg-primary text-primary-foreground"
+            className="w-full bg-[#c9a84c] hover:bg-[#b8943d] text-[#0a0f1e] font-bold"
           >
             Entrar na Plataforma
           </Button>
         </div>
       </div>
     );
+  }
+
+  // Redirect to onboarding if user has no organization (and is not super_admin)
+  if (!user.organizationId && user.role !== "super_admin") {
+    navigate("/onboarding");
+    return null;
   }
 
   return (
@@ -131,7 +141,12 @@ function DashboardLayoutContent({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isSuperAdmin = user?.role === "super_admin";
+
+  const { data: org } = trpc.organizations.mine.useQuery(undefined, {
+    enabled: !!user?.organizationId,
+  });
 
   const activeItem = [...sellerMenuItems, ...adminMenuItems].find(
     (item) => location === item.path || location.startsWith(item.path + "/")
@@ -169,6 +184,13 @@ function DashboardLayoutContent({
     ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "U";
 
+  const roleLabel = isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Vendedor";
+  const roleBadgeClass = isSuperAdmin
+    ? "border-[#c9a84c]/50 text-[#c9a84c]"
+    : isAdmin
+    ? "border-blue-400/50 text-blue-400"
+    : "border-sidebar-border text-sidebar-foreground/60";
+
   return (
     <>
       <div className="relative" ref={sidebarRef}>
@@ -186,15 +208,28 @@ function DashboardLayoutContent({
               {!isCollapsed && (
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded-md bg-sidebar-primary flex items-center justify-center shrink-0">
-                    <TrendingUp className="w-3.5 h-3.5 text-sidebar-primary-foreground" />
+                    <Building2 className="w-3.5 h-3.5 text-sidebar-primary-foreground" />
                   </div>
-                  <span className="font-bold text-sidebar-foreground tracking-tight truncate text-sm">
-                    SalesFlow CRM
-                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-sidebar-foreground tracking-tight truncate text-sm leading-none">
+                      Biz Management
+                    </p>
+                    <p className="text-[10px] text-sidebar-primary font-semibold tracking-wide">Follow</p>
+                  </div>
                 </div>
               )}
             </div>
           </SidebarHeader>
+
+          {/* Org info */}
+          {!isCollapsed && org && (
+            <div className="px-4 py-2.5 border-b border-sidebar-border/50">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-3.5 h-3.5 text-sidebar-foreground/40 shrink-0" />
+                <span className="text-xs text-sidebar-foreground/60 truncate">{org.name}</span>
+              </div>
+            </div>
+          )}
 
           {/* Navigation */}
           <SidebarContent className="py-3">
@@ -260,6 +295,25 @@ function DashboardLayoutContent({
                       </SidebarMenuItem>
                     );
                   })}
+
+                  {/* Super Admin link */}
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={location === "/super-admin"}
+                        onClick={() => setLocation("/super-admin")}
+                        tooltip="Super Admin"
+                        className={`h-9 rounded-lg font-normal transition-all ${
+                          location === "/super-admin"
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        }`}
+                      >
+                        <Users className="h-4 w-4 shrink-0 text-[#c9a84c]" />
+                        <span className="text-sm">Super Admin</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </>
             )}
@@ -283,9 +337,9 @@ function DashboardLayoutContent({
                       <div className="flex items-center gap-1.5 mt-1">
                         <Badge
                           variant="outline"
-                          className="text-[10px] h-4 px-1.5 border-sidebar-border text-sidebar-foreground/60"
+                          className={`text-[10px] h-4 px-1.5 ${roleBadgeClass}`}
                         >
-                          {isAdmin ? "Admin" : "Vendedor"}
+                          {roleLabel}
                         </Badge>
                       </div>
                     </div>
@@ -297,8 +351,15 @@ function DashboardLayoutContent({
                 <div className="px-3 py-2">
                   <p className="text-sm font-medium">{user?.name}</p>
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  {org && <p className="text-xs text-muted-foreground mt-0.5">{org.name}</p>}
                 </div>
                 <DropdownMenuSeparator />
+                {isSuperAdmin && (
+                  <DropdownMenuItem onClick={() => setLocation("/super-admin")} className="cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4 text-[#c9a84c]" />
+                    <span>Super Admin</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sair
@@ -309,11 +370,13 @@ function DashboardLayoutContent({
         </Sidebar>
 
         {/* Resize handle */}
-        <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
-          onMouseDown={() => { if (!isCollapsed) setIsResizing(true); }}
-          style={{ zIndex: 50 }}
-        />
+        {!isMobile && (
+          <div
+            className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
+            onMouseDown={() => { if (!isCollapsed) setIsResizing(true); }}
+            style={{ zIndex: 50 }}
+          />
+        )}
       </div>
 
       <SidebarInset className="bg-background">
@@ -322,9 +385,12 @@ function DashboardLayoutContent({
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="h-9 w-9 rounded-lg" />
-              <span className="font-semibold text-foreground text-sm">
-                {activeItem?.label ?? "SalesFlow CRM"}
-              </span>
+              <div>
+                <span className="font-semibold text-foreground text-sm">
+                  {activeItem?.label ?? "Biz Management Follow"}
+                </span>
+                {org && <p className="text-xs text-muted-foreground leading-none mt-0.5">{org.name}</p>}
+              </div>
             </div>
           </div>
         )}

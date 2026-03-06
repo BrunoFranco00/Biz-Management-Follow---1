@@ -97,3 +97,33 @@
 - [x] Check-in semanal guiado (wizard passo a passo)
 - [x] Score de performance do vendedor (0-100)
 - [x] Indicadores de humor semanal
+
+## v3 — Multi-tenant & Escalabilidade
+
+### Sprint 1: Multi-tenancy
+- [x] Tabela organizations no schema
+- [x] Campo organizationId em todas as tabelas de dados
+- [x] Role super_admin adicionado ao enum
+- [x] pnpm db:push para migrar
+- [x] Todos os helpers do db.ts filtrados por organizationId
+- [x] Todos os routers filtrados por organizationId do usuário logado
+
+### Sprint 2: Templates de Segmento
+- [x] Definição dos templates (Clínica, Agro, Genérico) em shared/
+- [x] Fluxo de onboarding: criar organização + escolher segmento
+- [x] Pré-configuração automática de KPIs, funil e atividades por template
+- [x] Página de onboarding para novos usuários sem organização
+
+### Sprint 3: Painel Super Admin
+- [x] Rota /super-admin protegida por role super_admin
+- [x] Listagem de todas as organizações com status e contagem de usuários
+- [x] Criar nova organização (nome, segmento, admin responsável)
+- [x] Ativar/desativar organização
+- [x] Promover usuário a admin de uma organização
+- [x] Visão de saúde: últimas atividades por organização
+
+### Sprint 4: Identidade Visual
+- [x] Renomear SalesFlow CRM → Biz Management Follow
+- [x] Atualizar VITE_APP_TITLE
+- [x] Atualizar logo e favicon
+- [x] Atualizar todas as referências de nome no código

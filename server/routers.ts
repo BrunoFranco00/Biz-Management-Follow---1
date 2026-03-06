@@ -5,71 +5,94 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
+  acceptInvite,
+  createDeal,
+  createInvite,
   createOpportunity,
+  createOrganization,
   createProduct,
   createRegion,
   createStrategicAction,
+  deleteDeal,
   deleteOpportunity,
   deleteStrategicAction,
   getActivitiesByReport,
   getAdminDashboardStats,
+  getAllCheckins,
+  getAllDeals,
+  getAllLabels,
   getAllOpportunities,
+  getAllOrganizations,
   getAllStrategicActions,
   getAllUsers,
+  getCheckinByReport,
   getConfidenceLevelByReport,
+  getDealsStats,
+  getDealsByUser,
+  getFullReportData,
+  getInvitesByOrganization,
   getKpiMetricsByReport,
   getLeadSourcesByReport,
   getObjectionsByReport,
   getOpportunitiesByUser,
   getOpportunitiesStats,
   getOrCreateWeeklyReport,
+  getOrganizationById,
   getProducts,
   getRegions,
   getSalesFunnelByReport,
+  getSuperAdminStats,
   getStrategicActionsByUser,
   getWeeklyActionsByReport,
   getWeeklyPlansByReport,
   getWeeklyReportById,
   getWeeklyReportsByUser,
+  seedLabelsFromTemplate,
+  updateDeal,
   updateOpportunity,
+  updateOrganization,
   updateProduct,
   updateRegion,
   updateStrategicAction,
+  updateUserOrganization,
+  updateUserRole,
   updateWeeklyReport,
   upsertActivities,
+  upsertCheckin,
   upsertConfidenceLevel,
   upsertKpiMetrics,
+  upsertLabel,
   upsertLeadSources,
   upsertObjections,
   upsertOperationalDifficulties,
   upsertSalesFunnel,
   upsertWeeklyActions,
   upsertWeeklyPlans,
-  // Deals
-  getDealsByUser,
-  getAllDeals,
-  createDeal,
-  updateDeal,
-  deleteDeal,
-  getDealsStats,
-  // Labels
-  getAllLabels,
-  upsertLabel,
-  // Checkins
-  getCheckinByReport,
-  upsertCheckin,
-  getAllCheckins,
-  // Report
-  getFullReportData,
 } from "./db";
+import { nanoid } from "nanoid";
 
-// Admin middleware
+// ─── Middleware helpers ────────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
+  if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   }
   return next({ ctx });
 });
+
+const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "super_admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Super admin access required" });
+  }
+  return next({ ctx });
+});
+
+// Helper to get org from user context (throws if not in an org)
+function requireOrg(user: { organizationId?: number | null; role: string }) {
+  if (!user.organizationId) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: "You must belong to an organization" });
+  }
+  return user.organizationId;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -84,42 +107,124 @@ export const appRouter = router({
     }),
   }),
 
+  // ─── ORGANIZATIONS ─────────────────────────────────────────────────────────
+  organizations: router({
+    // Get current user's organization
+    mine: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.organizationId) return null;
+      return getOrganizationById(ctx.user.organizationId);
+    }),
+
+    // Join via invite token
+    joinByToken: protectedProcedure
+      .input(z.object({ token: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await acceptInvite(input.token, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Admin: get invites for their org
+    getInvites: adminProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getInvitesByOrganization(orgId);
+    }),
+
+    // Admin: create invite
+    createInvite: adminProcedure
+      .input(z.object({ email: z.string().email(), role: z.enum(["user", "admin"]).default("user") }))
+      .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        const token = nanoid(32);
+        await createInvite(orgId, input.email, input.role, token);
+        return { token, inviteUrl: `${ctx.req.headers.origin ?? ""}/join?token=${token}` };
+      }),
+  }),
+
+  // ─── SUPER ADMIN ───────────────────────────────────────────────────────────
+  superAdmin: router({
+    stats: superAdminProcedure.query(async () => getSuperAdminStats()),
+
+    listOrganizations: superAdminProcedure.query(async () => getAllOrganizations()),
+
+    createOrganization: superAdminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        slug: z.string().min(1),
+        segment: z.enum(["aesthetics_clinic", "agribusiness", "generic", "real_estate", "retail", "tech"]),
+        maxUsers: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createOrganization(input);
+        return { id };
+      }),
+
+    updateOrganization: superAdminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        segment: z.string().optional(),
+        active: z.boolean().optional(),
+        maxUsers: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateOrganization(id, data);
+        return { success: true };
+      }),
+
+    listAllUsers: superAdminProcedure.query(async () => getAllUsers()),
+
+    assignUserToOrg: superAdminProcedure
+      .input(z.object({ userId: z.number(), organizationId: z.number(), role: z.enum(["user", "admin"]).optional() }))
+      .mutation(async ({ input }) => {
+        await updateUserOrganization(input.userId, input.organizationId, input.role);
+        return { success: true };
+      }),
+
+    updateUserRole: superAdminProcedure
+      .input(z.object({ userId: z.number(), role: z.enum(["user", "admin", "super_admin"]) }))
+      .mutation(async ({ input }) => {
+        await updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
+
+    seedOrgLabels: superAdminProcedure
+      .input(z.object({
+        organizationId: z.number(),
+        labels: z.array(z.object({ key: z.string(), value: z.string(), category: z.string(), description: z.string() })),
+      }))
+      .mutation(async ({ input }) => {
+        await seedLabelsFromTemplate(input.organizationId, input.labels);
+        return { success: true };
+      }),
+  }),
+
   // ─── WEEKLY REPORTS ────────────────────────────────────────────────────────
   reports: router({
     getOrCreate: protectedProcedure
       .input(z.object({ weekStart: z.string(), weekEnd: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        return getOrCreateWeeklyReport(ctx.user.id, input.weekStart, input.weekEnd);
+        const orgId = requireOrg(ctx.user);
+        return getOrCreateWeeklyReport(ctx.user.id, orgId, input.weekStart, input.weekEnd);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        reportId: z.number(),
-        highlights: z.string().optional(),
-        challenges: z.string().optional(),
-      }))
+      .input(z.object({ reportId: z.number(), highlights: z.string().optional(), challenges: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
-        if (!report || report.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        await updateWeeklyReport(input.reportId, {
-          highlights: input.highlights,
-          challenges: input.challenges,
-        });
+        if (!report || report.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await updateWeeklyReport(input.reportId, { highlights: input.highlights, challenges: input.challenges });
         return { success: true };
       }),
 
-    list: protectedProcedure.query(async ({ ctx }) => {
-      return getWeeklyReportsByUser(ctx.user.id);
-    }),
+    list: protectedProcedure.query(async ({ ctx }) => getWeeklyReportsByUser(ctx.user.id)),
 
     getById: protectedProcedure
       .input(z.object({ reportId: z.number() }))
       .query(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
         if (!report) return null;
-        if (report.userId !== ctx.user.id && ctx.user.role !== "admin") {
+        if (report.userId !== ctx.user.id && ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         return report;
@@ -131,20 +236,13 @@ export const appRouter = router({
     upsert: protectedProcedure
       .input(z.object({
         reportId: z.number(),
-        metrics: z.array(z.object({
-          metricName: z.string(),
-          target: z.number().optional(),
-          realized: z.number().optional(),
-          unit: z.string().optional(),
-          notes: z.string().optional(),
-        })),
+        metrics: z.array(z.object({ metricName: z.string(), target: z.number().optional(), realized: z.number().optional(), unit: z.string().optional(), notes: z.string().optional() })),
       }))
       .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
         const report = await getWeeklyReportById(input.reportId);
-        if (!report || report.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        await upsertKpiMetrics(input.reportId, ctx.user.id, input.metrics);
+        if (!report || report.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await upsertKpiMetrics(input.reportId, ctx.user.id, orgId, input.metrics);
         return { success: true };
       }),
 
@@ -153,9 +251,7 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
         if (!report) return [];
-        if (report.userId !== ctx.user.id && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
+        if (report.userId !== ctx.user.id && ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         return getKpiMetricsByReport(input.reportId);
       }),
   }),
@@ -165,18 +261,13 @@ export const appRouter = router({
     upsert: protectedProcedure
       .input(z.object({
         reportId: z.number(),
-        entries: z.array(z.object({
-          stage: z.enum(["prospecting", "qualification", "presentation", "negotiation", "closing"]),
-          quantity: z.number(),
-          totalValue: z.number(),
-        })),
+        entries: z.array(z.object({ stage: z.enum(["prospecting", "qualification", "presentation", "negotiation", "closing"]), quantity: z.number(), totalValue: z.number() })),
       }))
       .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
         const report = await getWeeklyReportById(input.reportId);
-        if (!report || report.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        await upsertSalesFunnel(input.reportId, ctx.user.id, input.entries);
+        if (!report || report.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await upsertSalesFunnel(input.reportId, ctx.user.id, orgId, input.entries);
         return { success: true };
       }),
 
@@ -185,18 +276,14 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
         if (!report) return [];
-        if (report.userId !== ctx.user.id && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
+        if (report.userId !== ctx.user.id && ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         return getSalesFunnelByReport(input.reportId);
       }),
   }),
 
   // ─── OPPORTUNITIES ─────────────────────────────────────────────────────────
   opportunities: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      return getOpportunitiesByUser(ctx.user.id);
-    }),
+    list: protectedProcedure.query(async ({ ctx }) => getOpportunitiesByUser(ctx.user.id)),
 
     create: protectedProcedure
       .input(z.object({
@@ -212,7 +299,8 @@ export const appRouter = router({
         productId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const id = await createOpportunity({ userId: ctx.user.id, ...input });
+        const orgId = requireOrg(ctx.user);
+        const id = await createOpportunity({ userId: ctx.user.id, organizationId: orgId, ...input });
         return { id };
       }),
 
@@ -247,7 +335,8 @@ export const appRouter = router({
       }),
 
     stats: protectedProcedure.query(async ({ ctx }) => {
-      return getOpportunitiesStats(ctx.user.id);
+      const orgId = requireOrg(ctx.user);
+      return getOpportunitiesStats(orgId, ctx.user.id);
     }),
   }),
 
@@ -256,26 +345,15 @@ export const appRouter = router({
     upsert: protectedProcedure
       .input(z.object({
         reportId: z.number(),
-        activities: z.array(z.object({
-          activityType: z.enum(["calls", "emails", "whatsapp", "in_person_visits", "meetings_scheduled"]),
-          target: z.number(),
-          realized: z.number(),
-          notes: z.string().optional(),
-        })),
-        leadSources: z.array(z.object({
-          source: z.enum(["referral", "active_prospecting", "inbound", "networking", "other"]),
-          quantity: z.number(),
-        })).optional(),
+        activities: z.array(z.object({ activityType: z.enum(["calls", "emails", "whatsapp", "in_person_visits", "meetings_scheduled"]), target: z.number(), realized: z.number(), notes: z.string().optional() })),
+        leadSources: z.array(z.object({ source: z.enum(["referral", "active_prospecting", "inbound", "networking", "other"]), quantity: z.number() })).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
         const report = await getWeeklyReportById(input.reportId);
-        if (!report || report.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        await upsertActivities(input.reportId, ctx.user.id, input.activities);
-        if (input.leadSources) {
-          await upsertLeadSources(input.reportId, ctx.user.id, input.leadSources);
-        }
+        if (!report || report.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await upsertActivities(input.reportId, ctx.user.id, orgId, input.activities);
+        if (input.leadSources) await upsertLeadSources(input.reportId, ctx.user.id, orgId, input.leadSources);
         return { success: true };
       }),
 
@@ -284,13 +362,8 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
         if (!report) return { activities: [], leadSources: [] };
-        if (report.userId !== ctx.user.id && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        const [acts, sources] = await Promise.all([
-          getActivitiesByReport(input.reportId),
-          getLeadSourcesByReport(input.reportId),
-        ]);
+        if (report.userId !== ctx.user.id && ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const [acts, sources] = await Promise.all([getActivitiesByReport(input.reportId), getLeadSourcesByReport(input.reportId)]);
         return { activities: acts, leadSources: sources };
       }),
   }),
@@ -300,28 +373,15 @@ export const appRouter = router({
     upsert: protectedProcedure
       .input(z.object({
         reportId: z.number(),
-        objections: z.array(z.object({
-          objectionText: z.string(),
-          frequency: z.number(),
-          responseUsed: z.string().optional(),
-          worked: z.boolean().optional(),
-          needsHelp: z.boolean().optional(),
-        })),
-        difficulties: z.array(z.object({
-          difficultyType: z.enum(["crm_issues", "lack_of_materials", "technical_doubts", "contact_difficulties", "schedule_issues", "lack_of_support", "other"]),
-          description: z.string().optional(),
-          suggestedSolution: z.string().optional(),
-        })).optional(),
+        objections: z.array(z.object({ objectionText: z.string(), frequency: z.number(), responseUsed: z.string().optional(), worked: z.boolean().optional(), needsHelp: z.boolean().optional() })),
+        difficulties: z.array(z.object({ difficultyType: z.enum(["crm_issues", "lack_of_materials", "technical_doubts", "contact_difficulties", "schedule_issues", "lack_of_support", "other"]), description: z.string().optional(), suggestedSolution: z.string().optional() })).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
         const report = await getWeeklyReportById(input.reportId);
-        if (!report || report.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        await upsertObjections(input.reportId, ctx.user.id, input.objections);
-        if (input.difficulties) {
-          await upsertOperationalDifficulties(input.reportId, ctx.user.id, input.difficulties);
-        }
+        if (!report || report.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await upsertObjections(input.reportId, ctx.user.id, orgId, input.objections);
+        if (input.difficulties) await upsertOperationalDifficulties(input.reportId, ctx.user.id, orgId, input.difficulties);
         return { success: true };
       }),
 
@@ -330,9 +390,7 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
         if (!report) return { objections: [] };
-        if (report.userId !== ctx.user.id && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
+        if (report.userId !== ctx.user.id && ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         return { objections: await getObjectionsByReport(input.reportId) };
       }),
   }),
@@ -342,37 +400,17 @@ export const appRouter = router({
     upsert: protectedProcedure
       .input(z.object({
         reportId: z.number(),
-        plans: z.array(z.object({
-          metricName: z.string(),
-          target: z.number().optional(),
-          howToAchieve: z.string().optional(),
-        })),
-        actions: z.array(z.object({
-          priority: z.number(),
-          actionDescription: z.string(),
-          deadline: z.string().optional(),
-          status: z.enum(["pending", "in_progress", "done", "cancelled"]).optional(),
-        })),
-        confidenceLevel: z.object({
-          level: z.enum(["very_confident", "confident", "moderately_confident", "low_confidence", "worried"]),
-          reason: z.string().optional(),
-        }).optional(),
+        plans: z.array(z.object({ metricName: z.string(), target: z.number().optional(), howToAchieve: z.string().optional() })),
+        actions: z.array(z.object({ priority: z.number(), actionDescription: z.string(), deadline: z.string().optional(), status: z.enum(["pending", "in_progress", "done", "cancelled"]).optional() })),
+        confidenceLevel: z.object({ level: z.enum(["very_confident", "confident", "moderately_confident", "low_confidence", "worried"]), reason: z.string().optional() }).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
         const report = await getWeeklyReportById(input.reportId);
-        if (!report || report.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        await upsertWeeklyPlans(input.reportId, ctx.user.id, input.plans);
-        await upsertWeeklyActions(input.reportId, ctx.user.id, input.actions);
-        if (input.confidenceLevel) {
-          await upsertConfidenceLevel(
-            input.reportId,
-            ctx.user.id,
-            input.confidenceLevel.level,
-            input.confidenceLevel.reason
-          );
-        }
+        if (!report || report.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await upsertWeeklyPlans(input.reportId, ctx.user.id, orgId, input.plans);
+        await upsertWeeklyActions(input.reportId, ctx.user.id, orgId, input.actions);
+        if (input.confidenceLevel) await upsertConfidenceLevel(input.reportId, ctx.user.id, orgId, input.confidenceLevel.level, input.confidenceLevel.reason);
         return { success: true };
       }),
 
@@ -381,50 +419,26 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const report = await getWeeklyReportById(input.reportId);
         if (!report) return { plans: [], actions: [], confidence: null };
-        if (report.userId !== ctx.user.id && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-        const [plans, actions, confidence] = await Promise.all([
-          getWeeklyPlansByReport(input.reportId),
-          getWeeklyActionsByReport(input.reportId),
-          getConfidenceLevelByReport(input.reportId),
-        ]);
+        if (report.userId !== ctx.user.id && ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const [plans, actions, confidence] = await Promise.all([getWeeklyPlansByReport(input.reportId), getWeeklyActionsByReport(input.reportId), getConfidenceLevelByReport(input.reportId)]);
         return { plans, actions, confidence };
       }),
   }),
 
   // ─── STRATEGIC ACTIONS ─────────────────────────────────────────────────────
   strategic: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      return getStrategicActionsByUser(ctx.user.id);
-    }),
+    list: protectedProcedure.query(async ({ ctx }) => getStrategicActionsByUser(ctx.user.id)),
 
     create: protectedProcedure
-      .input(z.object({
-        actionName: z.string().min(1),
-        startDate: z.string().optional(),
-        description: z.string().optional(),
-        completed: z.boolean().optional(),
-        resultYtd: z.string().optional(),
-        difficulty: z.string().optional(),
-        accelerationTips: z.string().optional(),
-      }))
+      .input(z.object({ actionName: z.string().min(1), startDate: z.string().optional(), description: z.string().optional(), completed: z.boolean().optional(), resultYtd: z.string().optional(), difficulty: z.string().optional(), accelerationTips: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
-        const id = await createStrategicAction({ userId: ctx.user.id, ...input });
+        const orgId = requireOrg(ctx.user);
+        const id = await createStrategicAction({ userId: ctx.user.id, organizationId: orgId, ...input });
         return { id };
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        actionName: z.string().optional(),
-        startDate: z.string().optional(),
-        description: z.string().optional(),
-        completed: z.boolean().optional(),
-        resultYtd: z.string().optional(),
-        difficulty: z.string().optional(),
-        accelerationTips: z.string().optional(),
-      }))
+      .input(z.object({ id: z.number(), actionName: z.string().optional(), startDate: z.string().optional(), description: z.string().optional(), completed: z.boolean().optional(), resultYtd: z.string().optional(), difficulty: z.string().optional(), accelerationTips: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         await updateStrategicAction(id, data);
@@ -441,26 +455,34 @@ export const appRouter = router({
 
   // ─── CONFIGURATION ─────────────────────────────────────────────────────────
   config: router({
-    getProducts: protectedProcedure.query(async () => getProducts()),
+    getProducts: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getProducts(orgId);
+    }),
     createProduct: adminProcedure
-      .input(z.object({ name: z.string().min(1), description: z.string().optional() }))
-      .mutation(async ({ input }) => {
-        const id = await createProduct(input.name, input.description);
+      .input(z.object({ name: z.string().min(1), description: z.string().optional(), price: z.number().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        const id = await createProduct(orgId, input.name, input.description, input.price);
         return { id };
       }),
     updateProduct: adminProcedure
-      .input(z.object({ id: z.number(), name: z.string().optional(), description: z.string().optional(), active: z.boolean().optional() }))
+      .input(z.object({ id: z.number(), name: z.string().optional(), description: z.string().optional(), active: z.boolean().optional(), price: z.number().optional() }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updateProduct(id, data);
         return { success: true };
       }),
 
-    getRegions: protectedProcedure.query(async () => getRegions()),
+    getRegions: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getRegions(orgId);
+    }),
     createRegion: adminProcedure
       .input(z.object({ name: z.string().min(1), code: z.string().optional() }))
-      .mutation(async ({ input }) => {
-        const id = await createRegion(input.name, input.code);
+      .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        const id = await createRegion(orgId, input.name, input.code);
         return { id };
       }),
     updateRegion: adminProcedure
@@ -472,51 +494,80 @@ export const appRouter = router({
       }),
   }),
 
-  // ─── ADMIN ─────────────────────────────────────────────────────────────────
+  // ─── ADMIN (org-level) ─────────────────────────────────────────────────────
   admin: router({
-    getUsers: adminProcedure.query(async () => getAllUsers()),
+    getUsers: adminProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getAllUsers(orgId);
+    }),
 
     getDashboard: adminProcedure
-      .input(z.object({
-        userId: z.number().optional(),
-        weekStart: z.string().optional(),
-        weekEnd: z.string().optional(),
-      }))
-      .query(async ({ input }) => {
-        return getAdminDashboardStats(input);
+      .input(z.object({ userId: z.number().optional(), weekStart: z.string().optional(), weekEnd: z.string().optional() }))
+      .query(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return getAdminDashboardStats(orgId, input);
       }),
 
-    getAllOpportunities: adminProcedure.query(async () => getAllOpportunities()),
+    getAllOpportunities: adminProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getAllOpportunities(orgId);
+    }),
 
-    getAllStrategicActions: adminProcedure.query(async () => getAllStrategicActions()),
+    getAllStrategicActions: adminProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getAllStrategicActions(orgId);
+    }),
 
     getOpportunitiesStats: adminProcedure
       .input(z.object({ userId: z.number().optional() }))
-      .query(async ({ input }) => {
-        return getOpportunitiesStats(input.userId);
+      .query(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return getOpportunitiesStats(orgId, input.userId);
       }),
 
-     getUserReports: adminProcedure
+    getUserReports: adminProcedure
       .input(z.object({ userId: z.number() }))
-      .query(async ({ input }) => {
-        const { getWeeklyReportsByUser } = await import("./db");
-        return getWeeklyReportsByUser(input.userId);
-      }),
+      .query(async ({ input }) => getWeeklyReportsByUser(input.userId)),
+
     getAllDeals: adminProcedure
       .input(z.object({ userId: z.number().optional(), status: z.string().optional(), regionId: z.number().optional() }))
-      .query(async ({ input }) => getAllDeals(input)),
+      .query(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return getAllDeals(orgId, input);
+      }),
+
     getDealsStats: adminProcedure
       .input(z.object({ userId: z.number().optional() }))
-      .query(async ({ input }) => getDealsStats(input.userId)),
+      .query(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return getDealsStats(orgId, input.userId);
+      }),
+
     getAllCheckins: adminProcedure
       .input(z.object({ userId: z.number().optional() }))
-      .query(async ({ input }) => getAllCheckins(input.userId)),
+      .query(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return getAllCheckins(orgId, input.userId);
+      }),
+
+    updateUserRole: adminProcedure
+      .input(z.object({ userId: z.number(), role: z.enum(["user", "admin"]) }))
+      .mutation(async ({ input }) => {
+        await updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
   }),
 
   // ─── DEALS ────────────────────────────────────────────────────────────────
   deals: router({
-    list: protectedProcedure.query(async ({ ctx }) => getDealsByUser(ctx.user.id)),
-    stats: protectedProcedure.query(async ({ ctx }) => getDealsStats(ctx.user.id)),
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getDealsByUser(ctx.user.id, orgId);
+    }),
+    stats: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = requireOrg(ctx.user);
+      return getDealsStats(orgId, ctx.user.id);
+    }),
     create: protectedProcedure
       .input(z.object({
         clientName: z.string().min(1),
@@ -538,7 +589,8 @@ export const appRouter = router({
         probability: z.number().min(0).max(100).default(50),
       }))
       .mutation(async ({ ctx, input }) => {
-        return createDeal({ ...input, userId: ctx.user.id });
+        const orgId = requireOrg(ctx.user);
+        return createDeal({ ...input, userId: ctx.user.id, organizationId: orgId });
       }),
     update: protectedProcedure
       .input(z.object({
@@ -572,10 +624,17 @@ export const appRouter = router({
 
   // ─── LABELS ───────────────────────────────────────────────────────────────
   labels: router({
-    list: publicProcedure.query(async () => getAllLabels()),
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = ctx.user.organizationId ?? 0;
+      if (!orgId) return [];
+      return getAllLabels(orgId);
+    }),
     update: adminProcedure
       .input(z.object({ labelKey: z.string(), labelValue: z.string().min(1) }))
-      .mutation(async ({ input }) => upsertLabel(input.labelKey, input.labelValue)),
+      .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return upsertLabel(orgId, input.labelKey, input.labelValue);
+      }),
   }),
 
   // ─── CHECKINS ─────────────────────────────────────────────────────────────
@@ -592,7 +651,10 @@ export const appRouter = router({
         nextWeekFocus: z.string().optional(),
         moodLevel: z.enum(["excellent", "good", "neutral", "difficult", "very_difficult"]).optional(),
       }))
-      .mutation(async ({ ctx, input }) => upsertCheckin({ ...input, userId: ctx.user.id })),
+      .mutation(async ({ ctx, input }) => {
+        const orgId = requireOrg(ctx.user);
+        return upsertCheckin({ ...input, userId: ctx.user.id, organizationId: orgId });
+      }),
   }),
 
   // ─── REPORT ───────────────────────────────────────────────────────────────
@@ -602,4 +664,5 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => getFullReportData(input.reportId, ctx.user.id)),
   }),
 });
+
 export type AppRouter = typeof appRouter;
