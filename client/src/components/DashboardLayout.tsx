@@ -26,17 +26,21 @@ import { useIsMobile } from "@/hooks/useMobile";
 import {
   BarChart3,
   BookOpen,
+  Briefcase,
   ChevronDown,
   Cog,
+  FileText,
   Layers,
   LayoutDashboard,
   LogOut,
+  Palette,
   PanelLeft,
   Shield,
   Target,
   TrendingUp,
   Users,
   Zap,
+  CheckCircle2,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -45,15 +49,19 @@ import { Button } from "./ui/button";
 
 const sellerMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Briefcase, label: "Negócios", path: "/deals" },
   { icon: Target, label: "Oportunidades", path: "/opportunities" },
   { icon: BarChart3, label: "Atividades", path: "/activities" },
   { icon: BookOpen, label: "Objeções", path: "/objections" },
   { icon: Layers, label: "Planejamento", path: "/planning" },
   { icon: Zap, label: "Ações Estratégicas", path: "/strategic" },
+  { icon: CheckCircle2, label: "Check-in Semanal", path: "/checkin" },
+  { icon: FileText, label: "Relatório Semanal", path: "/report" },
 ];
 
 const adminMenuItems = [
   { icon: Shield, label: "Painel Admin", path: "/admin" },
+  { icon: Palette, label: "Personalização", path: "/customization" },
   { icon: Cog, label: "Configurações", path: "/settings" },
 ];
 
@@ -320,7 +328,7 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
-        <main className="flex-1 p-6 min-h-screen">{children}</main>
+        <main className="flex-1 min-h-screen">{children}</main>
       </SidebarInset>
     </>
   );

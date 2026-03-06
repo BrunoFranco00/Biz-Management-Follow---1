@@ -45,3 +45,55 @@
 ## Testes
 - [x] Testes vitest para routers principais (14 testes passando)
 - [x] Checkpoint final
+
+## Expansão v2 - Novas Funcionalidades
+
+### Schema / Banco de Dados
+- [x] Tabela system_labels (personalização de labels pelo admin)
+- [x] Tabela deals (gestão completa de negócios/clientes)
+- [x] Tabela weekly_checkins (check-in semanal de performance)
+- [x] pnpm db:push para migrar novas tabelas
+
+### Backend (Routers)
+- [x] Router: labels (CRUD de personalização de labels)
+- [x] Router: deals (CRUD completo de negócios)
+- [x] Router: checkins (check-in semanal)
+- [x] Router: report (geração de dados para relatório semanal)
+
+### Módulo Gestão de Negócios
+- [x] Listagem de negócios com filtros (status, região, produto, período)
+- [x] Formulário de cadastro: cliente, região, procedimento, valor, datas, status
+- [x] Status: Prospecção / Em Andamento / Fechado / Perdido
+- [x] Kanban visual por status
+- [x] Indicadores: ticket médio, taxa de fechamento, ciclo médio de venda
+
+### Módulo Personalização Admin
+- [x] Interface para editar labels de atividades (Ligações, E-mails, etc.)
+- [x] Interface para editar labels do funil de vendas
+- [x] Interface para editar labels dos KPIs do dashboard
+- [x] Interface para editar nomes do menu lateral
+- [x] Persistência no banco e aplicação em tempo real
+
+### Relatório Semanal PDF
+- [x] Geração de PDF com todas as seções do app
+- [x] Capa com nome do vendedor, período e score
+- [x] Seção de KPIs e metas vs realizado
+- [x] Seção de funil de vendas
+- [x] Seção de atividades de prospecção
+- [x] Seção de objeções e respostas
+- [x] Seção de planejamento da próxima semana
+- [x] Seção de ações estratégicas
+- [x] Seção de check-in semanal
+- [x] Botão de impressão/PDF na interface
+
+### Mobile / Responsividade
+- [x] Sidebar colapsável em mobile (hamburguer menu)
+- [x] Cards e tabelas adaptados para telas pequenas
+- [x] Formulários responsivos
+- [x] Dashboard mobile-first
+- [x] Botões e inputs com tamanho adequado para toque
+
+### Melhorias de Acompanhamento Semanal
+- [x] Check-in semanal guiado (wizard passo a passo)
+- [x] Score de performance do vendedor (0-100)
+- [x] Indicadores de humor semanal

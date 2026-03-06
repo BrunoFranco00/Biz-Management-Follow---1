@@ -253,6 +253,55 @@ export const strategicActions = mysqlTable("strategic_actions", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+// ─── DEALS (Gestão de Negócios) ─────────────────────────────────────────────
+export const deals = mysqlTable("deals", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  clientName: varchar("clientName", { length: 200 }).notNull(),
+  regionId: int("regionId"),
+  productId: int("productId"),
+  productService: varchar("productService", { length: 200 }),
+  expectedValue: decimal("expectedValue", { precision: 15, scale: 2 }),
+  finalValue: decimal("finalValue", { precision: 15, scale: 2 }),
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate"),
+  status: mysqlEnum("status", ["prospecting", "in_progress", "won", "lost"]).default("prospecting").notNull(),
+  lostReason: text("lostReason"),
+  notes: text("notes"),
+  nextAction: text("nextAction"),
+  contactName: varchar("contactName", { length: 200 }),
+  contactPhone: varchar("contactPhone", { length: 30 }),
+  contactEmail: varchar("contactEmail", { length: 320 }),
+  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
+  probability: int("probability").default(50),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+// ─── SYSTEM LABELS (Personalização Admin) ────────────────────────────────────
+export const systemLabels = mysqlTable("system_labels", {
+  id: int("id").autoincrement().primaryKey(),
+  labelKey: varchar("labelKey", { length: 100 }).notNull().unique(),
+  labelValue: varchar("labelValue", { length: 200 }).notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+// ─── WEEKLY CHECKINS (Check-in Semanal de Performance) ───────────────────────
+export const weeklyCheckins = mysqlTable("weekly_checkins", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  reportId: int("reportId").notNull(),
+  performanceScore: int("performanceScore"),
+  weekHighlight: text("weekHighlight"),
+  biggestChallenge: text("biggestChallenge"),
+  nextWeekFocus: text("nextWeekFocus"),
+  moodLevel: mysqlEnum("moodLevel", ["excellent", "good", "neutral", "difficult", "very_difficult"]).default("good"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 // ─── EXPORT TYPES ─────────────────────────────────────────────────────────────
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
 export type Opportunity = typeof opportunities.$inferSelect;
@@ -261,3 +310,7 @@ export type Objection = typeof objections.$inferSelect;
 export type StrategicAction = typeof strategicActions.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Region = typeof regions.$inferSelect;
+export type Deal = typeof deals.$inferSelect;
+export type InsertDeal = typeof deals.$inferInsert;
+export type SystemLabel = typeof systemLabels.$inferSelect;
+export type WeeklyCheckin = typeof weeklyCheckins.$inferSelect;

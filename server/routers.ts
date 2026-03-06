@@ -45,6 +45,22 @@ import {
   upsertSalesFunnel,
   upsertWeeklyActions,
   upsertWeeklyPlans,
+  // Deals
+  getDealsByUser,
+  getAllDeals,
+  createDeal,
+  updateDeal,
+  deleteDeal,
+  getDealsStats,
+  // Labels
+  getAllLabels,
+  upsertLabel,
+  // Checkins
+  getCheckinByReport,
+  upsertCheckin,
+  getAllCheckins,
+  // Report
+  getFullReportData,
 } from "./db";
 
 // Admin middleware
@@ -480,13 +496,110 @@ export const appRouter = router({
         return getOpportunitiesStats(input.userId);
       }),
 
-    getUserReports: adminProcedure
+     getUserReports: adminProcedure
       .input(z.object({ userId: z.number() }))
       .query(async ({ input }) => {
         const { getWeeklyReportsByUser } = await import("./db");
         return getWeeklyReportsByUser(input.userId);
       }),
+    getAllDeals: adminProcedure
+      .input(z.object({ userId: z.number().optional(), status: z.string().optional(), regionId: z.number().optional() }))
+      .query(async ({ input }) => getAllDeals(input)),
+    getDealsStats: adminProcedure
+      .input(z.object({ userId: z.number().optional() }))
+      .query(async ({ input }) => getDealsStats(input.userId)),
+    getAllCheckins: adminProcedure
+      .input(z.object({ userId: z.number().optional() }))
+      .query(async ({ input }) => getAllCheckins(input.userId)),
+  }),
+
+  // ─── DEALS ────────────────────────────────────────────────────────────────
+  deals: router({
+    list: protectedProcedure.query(async ({ ctx }) => getDealsByUser(ctx.user.id)),
+    stats: protectedProcedure.query(async ({ ctx }) => getDealsStats(ctx.user.id)),
+    create: protectedProcedure
+      .input(z.object({
+        clientName: z.string().min(1),
+        regionId: z.number().optional(),
+        productId: z.number().optional(),
+        productService: z.string().optional(),
+        expectedValue: z.string().optional(),
+        finalValue: z.string().optional(),
+        startDate: z.string(),
+        endDate: z.string().optional(),
+        status: z.enum(["prospecting", "in_progress", "won", "lost"]).default("prospecting"),
+        lostReason: z.string().optional(),
+        notes: z.string().optional(),
+        nextAction: z.string().optional(),
+        contactName: z.string().optional(),
+        contactPhone: z.string().optional(),
+        contactEmail: z.string().optional(),
+        priority: z.enum(["low", "medium", "high"]).default("medium"),
+        probability: z.number().min(0).max(100).default(50),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return createDeal({ ...input, userId: ctx.user.id });
+      }),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        clientName: z.string().optional(),
+        regionId: z.number().optional(),
+        productId: z.number().optional(),
+        productService: z.string().optional(),
+        expectedValue: z.string().optional(),
+        finalValue: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        status: z.enum(["prospecting", "in_progress", "won", "lost"]).optional(),
+        lostReason: z.string().optional(),
+        notes: z.string().optional(),
+        nextAction: z.string().optional(),
+        contactName: z.string().optional(),
+        contactPhone: z.string().optional(),
+        contactEmail: z.string().optional(),
+        priority: z.enum(["low", "medium", "high"]).optional(),
+        probability: z.number().min(0).max(100).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        return updateDeal(id, ctx.user.id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => deleteDeal(input.id, ctx.user.id)),
+  }),
+
+  // ─── LABELS ───────────────────────────────────────────────────────────────
+  labels: router({
+    list: publicProcedure.query(async () => getAllLabels()),
+    update: adminProcedure
+      .input(z.object({ labelKey: z.string(), labelValue: z.string().min(1) }))
+      .mutation(async ({ input }) => upsertLabel(input.labelKey, input.labelValue)),
+  }),
+
+  // ─── CHECKINS ─────────────────────────────────────────────────────────────
+  checkins: router({
+    get: protectedProcedure
+      .input(z.object({ reportId: z.number() }))
+      .query(async ({ ctx, input }) => getCheckinByReport(input.reportId, ctx.user.id)),
+    upsert: protectedProcedure
+      .input(z.object({
+        reportId: z.number(),
+        performanceScore: z.number().min(0).max(100).optional(),
+        weekHighlight: z.string().optional(),
+        biggestChallenge: z.string().optional(),
+        nextWeekFocus: z.string().optional(),
+        moodLevel: z.enum(["excellent", "good", "neutral", "difficult", "very_difficult"]).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => upsertCheckin({ ...input, userId: ctx.user.id })),
+  }),
+
+  // ─── REPORT ───────────────────────────────────────────────────────────────
+  report: router({
+    full: protectedProcedure
+      .input(z.object({ reportId: z.number() }))
+      .query(async ({ ctx, input }) => getFullReportData(input.reportId, ctx.user.id)),
   }),
 });
-
 export type AppRouter = typeof appRouter;

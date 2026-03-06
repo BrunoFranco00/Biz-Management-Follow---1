@@ -18,6 +18,10 @@ import {
   weeklyPlans,
   weeklyReports,
   weeklySupport,
+  deals,
+  systemLabels,
+  weeklyCheckins,
+  type InsertDeal,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -643,4 +647,217 @@ export async function getOpportunitiesStats(userId?: number) {
     .from(opportunities)
     .where(whereClause)
     .groupBy(opportunities.stage);
+}
+
+// ─── DEALS (Gestão de Negócios) ───────────────────────────────────────────────
+export async function getDealsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      deal: deals,
+      region: { id: regions.id, name: regions.name },
+      product: { id: products.id, name: products.name },
+    })
+    .from(deals)
+    .leftJoin(regions, eq(deals.regionId, regions.id))
+    .leftJoin(products, eq(deals.productId, products.id))
+    .where(eq(deals.userId, userId))
+    .orderBy(desc(deals.updatedAt));
+}
+
+export async function getAllDeals(filters?: { userId?: number; status?: string; regionId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.userId) conditions.push(eq(deals.userId, filters.userId));
+  if (filters?.status) conditions.push(eq(deals.status, filters.status as "prospecting" | "in_progress" | "won" | "lost"));
+  if (filters?.regionId) conditions.push(eq(deals.regionId, filters.regionId));
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  return db
+    .select({
+      deal: deals,
+      user: { id: users.id, name: users.name },
+      region: { id: regions.id, name: regions.name },
+      product: { id: products.id, name: products.name },
+    })
+    .from(deals)
+    .leftJoin(users, eq(deals.userId, users.id))
+    .leftJoin(regions, eq(deals.regionId, regions.id))
+    .leftJoin(products, eq(deals.productId, products.id))
+    .where(whereClause)
+    .orderBy(desc(deals.updatedAt));
+}
+
+export async function createDeal(data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const startDate = data.startDate as string | Date;
+  const endDate = data.endDate as string | Date | undefined | null;
+  const insertData = {
+    ...data,
+    startDate: typeof startDate === "string" ? startDate : startDate.toISOString().split("T")[0],
+    endDate: endDate ? (typeof endDate === "string" ? endDate : (endDate as Date).toISOString().split("T")[0]) : null,
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [result] = await db.insert(deals).values(insertData as any);
+  return result;
+}
+
+export async function updateDeal(id: number, userId: number, data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updateData: Record<string, unknown> = { ...data };
+  if (data.startDate) updateData.startDate = typeof data.startDate === "string" ? data.startDate : (data.startDate as Date).toISOString().split("T")[0];
+  if (data.endDate) updateData.endDate = typeof data.endDate === "string" ? data.endDate : (data.endDate as Date).toISOString().split("T")[0];
+  await db.update(deals).set(updateData).where(and(eq(deals.id, id), eq(deals.userId, userId)));
+}
+
+export async function deleteDeal(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(deals).where(and(eq(deals.id, id), eq(deals.userId, userId)));
+}
+
+export async function getDealsStats(userId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = userId ? [eq(deals.userId, userId)] : [];
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  return db
+    .select({
+      status: deals.status,
+      count: sql<number>`COUNT(*)`,
+      totalExpected: sql<number>`SUM(CAST(${deals.expectedValue} AS DECIMAL(15,2)))`,
+      totalFinal: sql<number>`SUM(CAST(${deals.finalValue} AS DECIMAL(15,2)))`,
+    })
+    .from(deals)
+    .where(whereClause)
+    .groupBy(deals.status);
+}
+
+// ─── SYSTEM LABELS (Personalização Admin) ─────────────────────────────────────
+const DEFAULT_LABELS: Array<{ labelKey: string; labelValue: string; category: string; description: string }> = [
+  // Atividades
+  { labelKey: "activity.calls", labelValue: "Ligações", category: "activities", description: "Nome da atividade de ligações" },
+  { labelKey: "activity.emails", labelValue: "E-mails", category: "activities", description: "Nome da atividade de e-mails" },
+  { labelKey: "activity.whatsapp", labelValue: "WhatsApp", category: "activities", description: "Nome da atividade de WhatsApp" },
+  { labelKey: "activity.in_person_visits", labelValue: "Visitas Presenciais", category: "activities", description: "Nome da atividade de visitas" },
+  { labelKey: "activity.meetings_scheduled", labelValue: "Reuniões Agendadas", category: "activities", description: "Nome da atividade de reuniões" },
+  // Funil de Vendas
+  { labelKey: "funnel.prospecting", labelValue: "Prospecção", category: "funnel", description: "Nome da etapa de prospecção" },
+  { labelKey: "funnel.qualification", labelValue: "Qualificação", category: "funnel", description: "Nome da etapa de qualificação" },
+  { labelKey: "funnel.presentation", labelValue: "Apresentação", category: "funnel", description: "Nome da etapa de apresentação" },
+  { labelKey: "funnel.negotiation", labelValue: "Negociação", category: "funnel", description: "Nome da etapa de negociação" },
+  { labelKey: "funnel.closing", labelValue: "Fechamento", category: "funnel", description: "Nome da etapa de fechamento" },
+  // KPIs
+  { labelKey: "kpi.contacts", labelValue: "Contatos Realizados", category: "kpis", description: "Nome do KPI de contatos" },
+  { labelKey: "kpi.consultations", labelValue: "Consultas Agendadas", category: "kpis", description: "Nome do KPI de consultas" },
+  { labelKey: "kpi.deals_closed", labelValue: "Negociações Fechadas", category: "kpis", description: "Nome do KPI de negociações" },
+  { labelKey: "kpi.revenue", labelValue: "Faturamento (R$)", category: "kpis", description: "Nome do KPI de faturamento" },
+  // Status de Negócios
+  { labelKey: "deal.prospecting", labelValue: "Prospecção", category: "deal_status", description: "Status: prospecção" },
+  { labelKey: "deal.in_progress", labelValue: "Em Andamento", category: "deal_status", description: "Status: em andamento" },
+  { labelKey: "deal.won", labelValue: "Fechado", category: "deal_status", description: "Status: fechado/ganho" },
+  { labelKey: "deal.lost", labelValue: "Perdido", category: "deal_status", description: "Status: perdido" },
+  // Menu
+  { labelKey: "menu.dashboard", labelValue: "Dashboard", category: "menu", description: "Nome do menu Dashboard" },
+  { labelKey: "menu.deals", labelValue: "Negócios", category: "menu", description: "Nome do menu Negócios" },
+  { labelKey: "menu.opportunities", labelValue: "Oportunidades", category: "menu", description: "Nome do menu Oportunidades" },
+  { labelKey: "menu.activities", labelValue: "Atividades", category: "menu", description: "Nome do menu Atividades" },
+  { labelKey: "menu.objections", labelValue: "Objeções", category: "menu", description: "Nome do menu Objeções" },
+  { labelKey: "menu.planning", labelValue: "Planejamento", category: "menu", description: "Nome do menu Planejamento" },
+  { labelKey: "menu.strategic", labelValue: "Ações Estratégicas", category: "menu", description: "Nome do menu Ações Estratégicas" },
+];
+
+export async function getAllLabels() {
+  const db = await getDb();
+  if (!db) return DEFAULT_LABELS.map((l, i) => ({ id: i, ...l, updatedAt: new Date() }));
+  const existing = await db.select().from(systemLabels);
+  if (existing.length === 0) {
+    // Seed defaults
+    await db.insert(systemLabels).values(DEFAULT_LABELS).onDuplicateKeyUpdate({ set: { labelValue: sql`VALUES(labelValue)` } });
+    return db.select().from(systemLabels);
+  }
+  return existing;
+}
+
+export async function upsertLabel(labelKey: string, labelValue: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = DEFAULT_LABELS.find(l => l.labelKey === labelKey);
+  await db.insert(systemLabels).values({
+    labelKey,
+    labelValue,
+    category: existing?.category ?? "custom",
+    description: existing?.description ?? "",
+  }).onDuplicateKeyUpdate({ set: { labelValue } });
+}
+
+// ─── WEEKLY CHECKINS ──────────────────────────────────────────────────────────
+export async function getCheckinByReport(reportId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(weeklyCheckins)
+    .where(and(eq(weeklyCheckins.reportId, reportId), eq(weeklyCheckins.userId, userId)))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertCheckin(data: {
+  reportId: number;
+  userId: number;
+  performanceScore?: number;
+  weekHighlight?: string;
+  biggestChallenge?: string;
+  nextWeekFocus?: string;
+  moodLevel?: "excellent" | "good" | "neutral" | "difficult" | "very_difficult";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await getCheckinByReport(data.reportId, data.userId);
+  if (existing) {
+    await db.update(weeklyCheckins).set(data).where(eq(weeklyCheckins.id, existing.id));
+  } else {
+    await db.insert(weeklyCheckins).values(data);
+  }
+}
+
+export async function getAllCheckins(userId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = userId ? [eq(weeklyCheckins.userId, userId)] : [];
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  return db
+    .select({
+      checkin: weeklyCheckins,
+      user: { id: users.id, name: users.name },
+      report: { id: weeklyReports.id, weekStart: weeklyReports.weekStart, weekEnd: weeklyReports.weekEnd },
+    })
+    .from(weeklyCheckins)
+    .leftJoin(users, eq(weeklyCheckins.userId, users.id))
+    .leftJoin(weeklyReports, eq(weeklyCheckins.reportId, weeklyReports.id))
+    .where(whereClause)
+    .orderBy(desc(weeklyCheckins.createdAt));
+}
+
+// ─── REPORT DATA (para geração de PDF) ────────────────────────────────────────
+export async function getFullReportData(reportId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [report] = await db.select().from(weeklyReports).where(and(eq(weeklyReports.id, reportId), eq(weeklyReports.userId, userId))).limit(1);
+  if (!report) return null;
+  const [kpis, funnel, acts, leadSrcs, objs, plans, actions, strategic, checkin, user] = await Promise.all([
+    db.select().from(kpiMetrics).where(eq(kpiMetrics.reportId, reportId)),
+    db.select().from(salesFunnelEntries).where(eq(salesFunnelEntries.reportId, reportId)),
+    db.select().from(activities).where(eq(activities.reportId, reportId)),
+    db.select().from(leadSources).where(eq(leadSources.reportId, reportId)),
+    db.select().from(objections).where(eq(objections.reportId, reportId)),
+    db.select().from(weeklyPlans).where(eq(weeklyPlans.reportId, reportId)),
+    db.select().from(weeklyActions).where(eq(weeklyActions.reportId, reportId)),
+    db.select().from(strategicActions).where(eq(strategicActions.userId, userId)),
+    db.select().from(weeklyCheckins).where(and(eq(weeklyCheckins.reportId, reportId), eq(weeklyCheckins.userId, userId))).limit(1),
+    db.select().from(users).where(eq(users.id, userId)).limit(1),
+  ]);
+  return { report, kpis, funnel, activities: acts, leadSources: leadSrcs, objections: objs, plans, actions, strategic, checkin: checkin[0] ?? null, user: user[0] ?? null };
 }

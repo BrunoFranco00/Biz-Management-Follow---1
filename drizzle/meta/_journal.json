@@ -15,6 +15,13 @@
       "when": 1772758266516,
       "tag": "0001_goofy_the_watchers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1772762481161,
+      "tag": "0002_cultured_hiroim",
+      "breakpoints": true
     }
   ]
 }

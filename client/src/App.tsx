@@ -13,6 +13,10 @@ import Planning from "./pages/Planning";
 import Strategic from "./pages/Strategic";
 import AdminDashboard from "./pages/AdminDashboard";
 import Settings from "./pages/Settings";
+import Deals from "./pages/Deals";
+import Customization from "./pages/Customization";
+import Checkin from "./pages/Checkin";
+import Report from "./pages/Report";
 
 function Router() {
   return (
@@ -26,6 +30,10 @@ function Router() {
       <Route path="/strategic" component={Strategic} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/settings" component={Settings} />
+      <Route path="/deals" component={Deals} />
+      <Route path="/customization" component={Customization} />
+      <Route path="/checkin" component={Checkin} />
+      <Route path="/report" component={Report} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
