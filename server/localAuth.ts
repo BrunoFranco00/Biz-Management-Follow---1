@@ -180,6 +180,17 @@ export async function resetOrgUserPassword(
     .where(eq(orgSessions.orgUserId, orgUserId));
 }
 
+// ─── Invalidar sessão por token ─────────────────────────────────────────────
+export async function invalidateSession(token: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.delete(orgSessions).where(eq(orgSessions.token, token));
+  } catch {
+    // ignore
+  }
+}
+
 // ─── Atualizar perfil do usuário ──────────────────────────────────────────────
 export async function updateOrgUserProfile(
   orgUserId: number,

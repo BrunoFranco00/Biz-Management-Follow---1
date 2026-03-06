@@ -1,22 +1,24 @@
 /**
  * localAuthRoutes.ts
  * Rotas Express para autenticação local de org_users.
- * POST /api/local-auth/login  → login com username + senha
- * POST /api/local-auth/logout → limpa cookie de sessão local
- * GET  /api/local-auth/me     → retorna usuário local da sessão atual
+ * Usa Authorization: Bearer <token> em vez de cookies para evitar problemas cross-site.
+ * POST /api/local-auth/login  → login com username + senha, retorna { token, user }
+ * POST /api/local-auth/logout → invalida a sessão no banco
+ * GET  /api/local-auth/me     → retorna usuário local via Authorization header
  */
 import { Router, Request, Response } from "express";
-import { localLogin, resolveLocalUser, LOCAL_COOKIE } from "./localAuth";
+import { localLogin, resolveLocalUser, invalidateSession } from "./localAuth";
 
 const router = Router();
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "none" as const,
-  path: "/",
-  maxAge: 24 * 60 * 60 * 1000, // 24h
-};
+// Helper para extrair o token do header Authorization
+function extractBearerToken(req: Request): string | null {
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith("Bearer ")) {
+    return auth.slice(7);
+  }
+  return null;
+}
 
 // POST /api/local-auth/login
 router.post("/login", async (req: Request, res: Response) => {
@@ -31,10 +33,9 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Usuário ou senha incorretos" });
     }
 
-    res.cookie(LOCAL_COOKIE, result.token, COOKIE_OPTIONS);
-
     return res.json({
       success: true,
+      token: result.token,
       user: {
         id: result.orgUser.id,
         username: result.orgUser.username,
@@ -51,20 +52,26 @@ router.post("/login", async (req: Request, res: Response) => {
 });
 
 // POST /api/local-auth/logout
-router.post("/logout", (req: Request, res: Response) => {
-  res.clearCookie(LOCAL_COOKIE, { ...COOKIE_OPTIONS, maxAge: -1 });
-  return res.json({ success: true });
+router.post("/logout", async (req: Request, res: Response) => {
+  try {
+    const token = extractBearerToken(req);
+    if (token) {
+      await invalidateSession(token);
+    }
+    return res.json({ success: true });
+  } catch {
+    return res.json({ success: true });
+  }
 });
 
 // GET /api/local-auth/me
 router.get("/me", async (req: Request, res: Response) => {
   try {
-    const token = req.cookies?.[LOCAL_COOKIE];
+    const token = extractBearerToken(req);
     if (!token) return res.json({ user: null });
 
     const orgUser = await resolveLocalUser(token);
     if (!orgUser) {
-      res.clearCookie(LOCAL_COOKIE, { ...COOKIE_OPTIONS, maxAge: -1 });
       return res.json({ user: null });
     }
 
