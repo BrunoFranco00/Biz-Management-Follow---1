@@ -199,7 +199,22 @@ function setCellValue(
 function formatValue(value: unknown, col: GridColumn): string {
   if (value === undefined || value === null || value === "") return "—";
   if (col.columnType === "checkbox") return value ? "✓" : "✗";
-  return `${value}${col.unit ? ` ${col.unit}` : ""}`;
+  if (col.columnType === "number" || col.columnType === "formula") {
+    const num = typeof value === "string" ? parseFloat(value) : Number(value);
+    if (!isNaN(num)) {
+      const formatted = num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const unit = col.unit?.trim();
+      if (unit) {
+        const monetaryUnits = ["r$", "usd", "eur", "brl", "$", "€", "£"];
+        if (monetaryUnits.includes(unit.toLowerCase())) {
+          return `${unit.toUpperCase() === "BRL" ? "R$" : unit} ${formatted}`;
+        }
+        return `${formatted} ${unit}`;
+      }
+      return formatted;
+    }
+  }
+  return String(value);
 }
 
 // ─── Cell Renderer ────────────────────────────────────────────────────────────
@@ -1114,10 +1129,10 @@ export default function SmartGrid() {
                                     >
                                       {stats ? (
                                         <div className="flex items-center gap-2">
-                                          <span className="text-amber-400">Σ {stats.sum}{col.unit ? ` ${col.unit}` : ""}</span>
-                                          <span className="text-muted-foreground/60">Ø {stats.avg}</span>
-                                          <span className="text-green-400/60">↑ {stats.max}</span>
-                                          <span className="text-red-400/60">↓ {stats.min}</span>
+                                          <span className="text-amber-400">Σ {formatValue(stats.sum, col)}</span>
+                                          <span className="text-muted-foreground/60">Ø {formatValue(stats.avg, col)}</span>
+                                          <span className="text-green-400/60">↑ {formatValue(stats.max, col)}</span>
+                                          <span className="text-red-400/60">↓ {formatValue(stats.min, col)}</span>
                                         </div>
                                       ) : (
                                         <span className="text-muted-foreground/30">—</span>
@@ -1509,8 +1524,8 @@ export default function SmartGrid() {
                                             >
                                               {stats ? (
                                                 <div className="flex items-center gap-2">
-                                                  <span className="text-blue-400">Σ {stats.sum}{col.unit ? ` ${col.unit}` : ""}</span>
-                                                  <span className="text-muted-foreground/60">Ø {stats.avg}</span>
+                                                  <span className="text-blue-400">Σ {formatValue(stats.sum, col)}</span>
+                                                  <span className="text-muted-foreground/60">Ø {formatValue(stats.avg, col)}</span>
                                                 </div>
                                               ) : (
                                                 <span className="text-muted-foreground/30">—</span>

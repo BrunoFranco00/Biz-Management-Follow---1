@@ -212,3 +212,10 @@
 - [ ] Opção de ocultar colunas e linhas
 - [ ] Cálculos automáticos (soma, multiplicação, etc.) com resultado exibido ACIMA do cabeçalho da coluna
 - [ ] Configuração de colunas: suporte a todos os tipos de cálculo (soma, subtração, multiplicação, divisão, %, média ponderada, etc.)
+
+## v7 — Formatação Monetária
+
+- [x] Criar utilitário formatCurrency(value, unit) → "R$ 11.000,00"
+- [x] Corrigir CellRenderer no Smart Grid: exibir unidade antes do número com formatação pt-BR
+- [x] Deals, Dashboard, AdminDashboard, Opportunities: já usavam Intl.NumberFormat("pt-BR") corretamente
+- [x] Corrigir totais/médias no cabeçalho das colunas do Smart Grid (formatValue aplicado)
