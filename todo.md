@@ -219,3 +219,13 @@
 - [x] Corrigir CellRenderer no Smart Grid: exibir unidade antes do número com formatação pt-BR
 - [x] Deals, Dashboard, AdminDashboard, Opportunities: já usavam Intl.NumberFormat("pt-BR") corretamente
 - [x] Corrigir totais/médias no cabeçalho das colunas do Smart Grid (formatValue aplicado)
+
+## v8 — Super Admin Global + Importação Excel
+
+- [ ] Super Admin: seletor de organização global no sidebar (troca de org a qualquer momento)
+- [ ] Super Admin: painel de gestão dedicado (SuperAdminPanel.tsx) com visão de todas as orgs
+- [ ] Super Admin: contexto de organização ativa persistido (localStorage + backend)
+- [ ] Super Admin: edição total em todas as páginas usando a org ativa selecionada
+- [x] Smart Grid: importação de dados via Excel (.xlsx) para admin e super_admin
+- [x] Smart Grid: mapeamento de colunas do Excel para colunas do grid
+- [x] Smart Grid: preview dos dados antes de confirmar importação

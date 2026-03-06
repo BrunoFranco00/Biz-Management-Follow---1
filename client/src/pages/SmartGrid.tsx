@@ -86,6 +86,7 @@ import {
   Check,
   Pencil,
   Download,
+  Upload,
   FileSpreadsheet,
   FileImage,
   FileText as FilePdf,
@@ -630,6 +631,80 @@ export default function SmartGrid() {
     },
     onError: (e) => toast.error(e.message),
   });
+
+  const importRowsMut = trpc.grid.importRows.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.imported} linha(s) importada(s) com sucesso!`);
+      setImportDialog(false);
+      setImportPreview([]);
+      setImportHeaders([]);
+      setImportMapping({});
+      setImportUserCol("");
+      void utils.grid.getMyRows.invalidate();
+      void utils.grid.getAdminView.invalidate();
+    },
+    onError: (e) => toast.error(`Erro ao importar: ${e.message}`),
+  });
+
+  // Import Excel state
+  const [importDialog, setImportDialog] = useState(false);
+  const [importHeaders, setImportHeaders] = useState<string[]>([]);
+  const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({}); // excelHeader -> col_ID
+  const [importUserCol, setImportUserCol] = useState<string>("");
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "" });
+      if (json.length === 0) { toast.error("Planilha vazia ou formato inv\u00e1lido"); return; }
+      const headers = Object.keys(json[0]);
+      setImportHeaders(headers);
+      setImportPreview(json);
+      setImportMapping({});
+      setImportUserCol("");
+    };
+    reader.readAsArrayBuffer(file);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleConfirmImport = () => {
+    if (!adminData) return;
+    const users = adminData.byUser.map(u => u.user);
+    const rows: { userId: number; data: Record<string, string> }[] = [];
+    for (const excelRow of importPreview) {
+      let userId: number | null = null;
+      if (importUserCol) {
+        const val = String(excelRow[importUserCol] ?? "").toLowerCase().trim();
+        const found = users.find(u =>
+          (u.username?.toLowerCase() === val) ||
+          (u.displayName?.toLowerCase() === val) ||
+          (String(u.id) === val)
+        );
+        if (found) userId = found.id;
+      }
+      if (!userId) continue;
+      const rowData: Record<string, string> = {};
+      for (const [excelHeader, colKey] of Object.entries(importMapping)) {
+        if (colKey && excelRow[excelHeader] !== undefined) {
+          rowData[colKey] = String(excelRow[excelHeader]);
+        }
+      }
+      rows.push({ userId, data: rowData });
+    }
+    if (rows.length === 0) {
+      toast.error("Nenhuma linha v\u00e1lida encontrada. Verifique o mapeamento de usu\u00e1rio.");
+      return;
+    }
+    importRowsMut.mutate({ rows });
+  };
 
   // ── Handlers ──
 
@@ -1433,6 +1508,17 @@ export default function SmartGrid() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
+                      {/* Importar Excel */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs h-8 border-green-500/30 text-green-400 hover:bg-green-500/10"
+                        onClick={() => setImportDialog(true)}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        Importar Excel
+                      </Button>
+
                       {/* Exportar */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1823,6 +1909,144 @@ export default function SmartGrid() {
           onSubmit={submitColumnForm}
           isPending={addColumnMut.isPending || updateColumnMut.isPending}
         />
+
+        {/* ── Import Excel Dialog ── */}
+        <Dialog open={importDialog} onOpenChange={v => { if (!v) { setImportDialog(false); setImportPreview([]); setImportHeaders([]); setImportMapping({}); setImportUserCol(""); } }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-green-400" />
+                Importar Excel
+              </DialogTitle>
+              <DialogDescription>
+                Faça upload de uma planilha Excel (.xlsx) e mapeie as colunas para o Smart Grid.
+                Cada linha da planilha será associada a um usuário da organização.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-5 py-2">
+              {/* Upload area */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">1. Selecionar arquivo Excel</Label>
+                <div
+                  className="border-2 border-dashed border-border/50 rounded-lg p-6 text-center cursor-pointer hover:border-green-500/50 hover:bg-green-500/5 transition-colors"
+                  onClick={() => importFileRef.current?.click()}
+                >
+                  <FileSpreadsheet className="w-8 h-8 text-green-400/50 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    {importPreview.length > 0
+                      ? <span className="text-green-400 font-medium">{importPreview.length} linhas carregadas</span>
+                      : "Clique para selecionar ou arraste o arquivo .xlsx"}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Suporta .xlsx, .xls, .csv</p>
+                </div>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
+              </div>
+
+              {importHeaders.length > 0 && (
+                <>
+                  {/* User column mapping */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">2. Coluna de usuário (username ou nome)</Label>
+                    <p className="text-xs text-muted-foreground">Selecione qual coluna da planilha identifica o usuário (ex: "username", "vendedor", "nome").</p>
+                    <Select value={importUserCol} onValueChange={setImportUserCol}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecionar coluna..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {importHeaders.map(h => (
+                          <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {adminData && importUserCol && (
+                      <div className="text-xs text-muted-foreground p-2 bg-muted/20 rounded">
+                        Usuários disponíveis: {adminData.byUser.map(u => u.user.username).join(", ")}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Column mapping */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">3. Mapear colunas do Excel para o Smart Grid</Label>
+                    <p className="text-xs text-muted-foreground">Associe cada coluna da planilha a uma coluna do Smart Grid.</p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {importHeaders.filter(h => h !== importUserCol).map(header => (
+                        <div key={header} className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-32 truncate shrink-0" title={header}>{header}</span>
+                          <span className="text-xs text-muted-foreground/40">→</span>
+                          <Select
+                            value={importMapping[header] ?? "_skip"}
+                            onValueChange={v => setImportMapping(prev => ({ ...prev, [header]: v === "_skip" ? "" : v }))}
+                          >
+                            <SelectTrigger className="h-7 text-xs flex-1">
+                              <SelectValue placeholder="Ignorar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_skip" className="text-xs text-muted-foreground">— Ignorar —</SelectItem>
+                              {columns.filter(c => c.columnType !== "formula").map(col => (
+                                <SelectItem key={col.id} value={`col_${col.id}`} className="text-xs">{col.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">4. Pré-visualização (primeiras 3 linhas)</Label>
+                    <div className="overflow-x-auto rounded border border-border/30">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-muted/30 border-b border-border/30">
+                            {importHeaders.map(h => (
+                              <th key={h} className="px-2 py-1.5 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.slice(0, 3).map((row, i) => (
+                            <tr key={i} className="border-b border-border/20">
+                              {importHeaders.map(h => (
+                                <td key={h} className="px-2 py-1.5 text-foreground/80 whitespace-nowrap">{String(row[h] ?? "")}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-muted-foreground/60">{importPreview.length} linhas no total</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setImportDialog(false); setImportPreview([]); setImportHeaders([]); setImportMapping({}); setImportUserCol(""); }}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmImport}
+                disabled={importPreview.length === 0 || !importUserCol || importRowsMut.isPending}
+                className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+              >
+                {importRowsMut.isPending ? (
+                  <><span className="w-3 h-3 border border-white/50 border-t-white rounded-full animate-spin" />Importando...</>
+                ) : (
+                  <><Upload className="w-3.5 h-3.5" />Importar {importPreview.length} linha(s)</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </TooltipProvider>
   );

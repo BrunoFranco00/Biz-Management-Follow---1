@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocalAuth } from "@/contexts/LocalAuthContext";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { trpc } from "@/lib/trpc";
 import {
   BarChart3,
@@ -16,8 +17,11 @@ import {
   Building2,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Cog,
+  Crown,
   FileText,
+  Globe,
   KeyRound,
   Layers,
   LayoutDashboard,
@@ -35,7 +39,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 
@@ -59,6 +63,87 @@ const adminMenuItems = [
   { icon: Palette, label: "Personalização", path: "/customization" },
   { icon: Cog, label: "Configurações", path: "/settings" },
 ];
+
+// ─── Org Switcher (Super Admin only) ─────────────────────────────────────────
+function OrgSwitcher({ collapsed }: { collapsed: boolean }) {
+  const { activeOrgId, setActiveOrgId } = useActiveOrg();
+  const { data: orgs } = trpc.superAdmin.listOrganizations.useQuery();
+  const activeOrg = orgs?.find((o) => o.id === activeOrgId);
+  const [open, setOpen] = useState(false);
+
+  if (!orgs || orgs.length === 0) return null;
+
+  return (
+    <div className="px-2 py-2 border-b border-sidebar-border/50 shrink-0">
+      {collapsed ? (
+        <div className="flex justify-center">
+          <DropdownMenu open={open} onOpenChange={setOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="h-8 w-8 flex items-center justify-center rounded-lg bg-purple-900/30 hover:bg-purple-900/50 transition-colors border border-purple-500/30"
+                title={`Org ativa: ${activeOrg?.name ?? "Selecionar"}`}
+              >
+                <Globe className="h-3.5 w-3.5 text-purple-300" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="w-52">
+              <div className="px-2 py-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Organização Ativa</p>
+              </div>
+              <DropdownMenuSeparator />
+              {orgs.map((org) => (
+                <DropdownMenuItem
+                  key={org.id}
+                  onClick={() => { setActiveOrgId(org.id); setOpen(false); }}
+                  className={`cursor-pointer ${org.id === activeOrgId ? "bg-purple-900/20 text-purple-300" : ""}`}
+                >
+                  <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">{org.name}</span>
+                  {org.id === activeOrgId && <ChevronRight className="ml-auto h-3 w-3 text-purple-400" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : (
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger asChild>
+            <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/50 transition-colors border border-purple-500/30 bg-purple-900/20">
+              <Globe className="h-3.5 w-3.5 text-purple-300 shrink-0" />
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[10px] text-purple-300/70 uppercase tracking-wider font-semibold leading-none">Organização Ativa</p>
+                <p className="text-xs text-purple-200 font-medium truncate mt-0.5 leading-none">
+                  {activeOrg?.name ?? "Selecionar organização"}
+                </p>
+              </div>
+              <ChevronDown className="h-3 w-3 text-purple-300/60 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <div className="px-2 py-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trocar Organização</p>
+            </div>
+            <DropdownMenuSeparator />
+            {orgs.map((org) => (
+              <DropdownMenuItem
+                key={org.id}
+                onClick={() => { setActiveOrgId(org.id); setOpen(false); }}
+                className={`cursor-pointer ${org.id === activeOrgId ? "bg-purple-900/20 text-purple-300" : ""}`}
+              >
+                <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium">{org.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{org.segment}</p>
+                </div>
+                {org.id === activeOrgId && <ChevronRight className="ml-2 h-3 w-3 text-purple-400 shrink-0" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  );
+}
 
 // ─── Breakpoints ──────────────────────────────────────────────────────────────
 function useBreakpoint() {
@@ -124,7 +209,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const isSuperAdmin = user?.role === "super_admin";
-  const { data: org } = trpc.organizations.mine.useQuery(undefined, { enabled: !!user?.organizationId });
+  const { activeOrgId, isSuperAdmin: ctxSuperAdmin } = useActiveOrg();
+  const { data: org } = trpc.organizations.mine.useQuery(undefined, { enabled: !!user?.organizationId && !isSuperAdmin });
+  const { data: orgs } = trpc.superAdmin.listOrganizations.useQuery(undefined, { enabled: isSuperAdmin });
+  const activeOrg = isSuperAdmin ? orgs?.find((o) => o.id === activeOrgId) : org;
 
   const displayName = user?.displayName ?? user?.username ?? "Usuário";
   const initials = displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -135,7 +223,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     ? "border-amber-400/50 text-amber-300 bg-amber-900/20"
     : "border-sidebar-border/60 text-sidebar-foreground/60";
 
-  const activeItem = [...sellerMenuItems, ...adminMenuItems].find(
+  const superAdminItem = { icon: Crown, label: "Painel Super Admin", path: "/super-admin" };
+  const activeItem = [...sellerMenuItems, ...adminMenuItems, superAdminItem].find(
     (item) => location === item.path || location.startsWith(item.path + "/")
   );
 
@@ -196,8 +285,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Org info */}
-      {showLabels && (
+      {/* Super Admin: Org Switcher */}
+      {isSuperAdmin && <OrgSwitcher collapsed={sidebarCollapsed && !isMobile && !isTablet} />}
+
+      {/* Regular org info (non-super-admin) */}
+      {!isSuperAdmin && showLabels && (
         <div className="px-4 py-2 border-b border-sidebar-border/50 shrink-0">
           <div className="flex items-center gap-2">
             <Building2 className="w-3.5 h-3.5 text-sidebar-foreground/40 shrink-0" />
@@ -278,6 +370,38 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </ul>
           </>
         )}
+
+        {/* Super Admin section */}
+        {isSuperAdmin && (
+          <>
+            {showLabels && (
+              <div className="px-4 mt-4 mb-1">
+                <span className="text-[10px] font-semibold text-purple-400/70 uppercase tracking-wider">
+                  Super Admin
+                </span>
+              </div>
+            )}
+            {!showLabels && <div className="my-3 mx-2 border-t border-purple-500/30" />}
+            <ul className="px-2 space-y-0.5">
+              <li>
+                <button
+                  onClick={() => navigate("/super-admin")}
+                  title={!showLabels ? "Painel Super Admin" : undefined}
+                  className={`w-full flex items-center gap-3 h-9 px-2 rounded-lg text-sm font-normal transition-all
+                    ${location === "/super-admin"
+                      ? "bg-purple-900/40 text-purple-200"
+                      : "text-purple-300/70 hover:text-purple-200 hover:bg-purple-900/30"
+                    }
+                    ${!showLabels ? "justify-center" : ""}
+                  `}
+                >
+                  <Crown className={`h-4 w-4 shrink-0 ${location === "/super-admin" ? "text-purple-300" : ""}`} />
+                  {showLabels && <span className="truncate">Painel Super Admin</span>}
+                </button>
+              </li>
+            </ul>
+          </>
+        )}
       </nav>
 
       {/* Footer */}
@@ -315,7 +439,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="px-3 py-2">
               <p className="text-sm font-medium">{displayName}</p>
               <p className="text-xs text-muted-foreground">{user?.username}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Slot #{user?.slot}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isSuperAdmin ? "Super Admin Global" : `Slot #${user?.slot}`}
+              </p>
+              {isSuperAdmin && activeOrg && (
+                <p className="text-xs text-purple-500 mt-0.5">Org ativa: {activeOrg.name}</p>
+              )}
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
@@ -326,6 +455,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <KeyRound className="mr-2 h-4 w-4" />
               <span>Alterar Senha</span>
             </DropdownMenuItem>
+            {isSuperAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setLocation("/super-admin")} className="cursor-pointer text-purple-600">
+                  <Crown className="mr-2 h-4 w-4" />
+                  <span>Painel Super Admin</span>
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />

@@ -5,6 +5,7 @@ import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LocalAuthProvider, useLocalAuth } from "./contexts/LocalAuthContext";
+import { ActiveOrgProvider } from "./contexts/ActiveOrgContext";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Opportunities from "./pages/Opportunities";
@@ -104,10 +105,12 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <LocalAuthProvider>
+          <ActiveOrgProvider>
           <TooltipProvider>
             <Toaster />
             <Router />
           </TooltipProvider>
+          </ActiveOrgProvider>
         </LocalAuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

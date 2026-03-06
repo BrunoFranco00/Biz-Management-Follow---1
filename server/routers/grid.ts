@@ -235,6 +235,34 @@ export const gridRouter = router({
       return { success: true };
     }),
 
+  // Admin: importar linhas em massa (via Excel)
+  importRows: adminProcedure
+    .input(z.object({
+      organizationId: z.number().optional(),
+      rows: z.array(z.object({
+        userId: z.number(),
+        data: z.record(z.string(), z.string()),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+        ? input.organizationId
+        : requireOrg(ctx.user);
+      const template = await getOrCreateTemplate(orgId);
+      let count = 0;
+      for (const row of input.rows) {
+        await upsertRow({
+          templateId: template.id,
+          organizationId: orgId,
+          userId: row.userId,
+          rowOrder: count,
+          data: JSON.stringify(row.data),
+        });
+        count++;
+      }
+      return { imported: count };
+    }),
+
   // Dashboard: widgets dinâmicos do grid
   getDashboardWidgets: protectedProcedure.query(async ({ ctx }) => {
     const orgId = requireOrg(ctx.user);
