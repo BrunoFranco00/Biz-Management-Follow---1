@@ -1,0 +1,75 @@
+{
+  "query": "SELECT * FROM org_users LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4MnEf7aH6itRRBg.91faba616815 --database SCyBrKNBmddHHbUYUj7tm2 --execute SELECT * FROM org_users LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "organizationId": "1",
+      "slot": "0",
+      "username": "superadmin",
+      "passwordHash": "$2b$10$FD9nYjMGP5l68Hg7lbgzjuBsE0BioDyy5X.i99/vZGqh0SP/S5lm2",
+      "displayName": "Super Admin",
+      "role": "super_admin",
+      "active": "1",
+      "createdAt": "2026-03-06 16:49:44",
+      "updatedAt": "2026-03-06 17:06:47",
+      "lastSignedIn": "2026-03-06 17:06:48"
+    },
+    {
+      "id": "2",
+      "organizationId": "1",
+      "slot": "1",
+      "username": "user1_org1",
+      "passwordHash": "$2b$10$IdvezPDYlaOBwYd8PYDdFurRX2ZS2IoVvDi7pRk6Kd5BBVbNba/PO",
+      "displayName": "Usuário 1",
+      "role": "user",
+      "active": "1",
+      "createdAt": "2026-03-06 16:49:45",
+      "updatedAt": "2026-03-06 16:49:45",
+      "lastSignedIn": "NULL"
+    },
+    {
+      "id": "3",
+      "organizationId": "1",
+      "slot": "2",
+      "username": "user2_org1",
+      "passwordHash": "$2b$10$SHOBfvHN60PFSrpDwgXgNe9omtmWbRj78oh/BqynOEEubNmb.VHFO",
+      "displayName": "Usuário 2",
+      "role": "user",
+      "active": "1",
+      "createdAt": "2026-03-06 16:49:45",
+      "updatedAt": "2026-03-06 16:49:45",
+      "lastSignedIn": "NULL"
+    },
+    {
+      "id": "4",
+      "organizationId": "1",
+      "slot": "3",
+      "username": "user3_org1",
+      "passwordHash": "$2b$10$IHEqWz6q4SnE3HrlJCn8uesTdZTlzOf0uRk0QAnTZjlyYoWJSxDwm",
+      "displayName": "Usuário 3",
+      "role": "user",
+      "active": "1",
+      "createdAt": "2026-03-06 16:49:45",
+      "updatedAt": "2026-03-06 16:49:45",
+      "lastSignedIn": "NULL"
+    },
+    {
+      "id": "5",
+      "organizationId": "1",
+      "slot": "4",
+      "username": "user4_org1",
+      "passwordHash": "$2b$10$DlEZKeL4Kv8vmNuTj4k6ROGB3SRod/5ekbB6j/PusS6Opr3F1Y6ky",
+      "displayName": "Usuário 4",
+      "role": "user",
+      "active": "1",
+      "createdAt": "2026-03-06 16:49:45",
+      "updatedAt": "2026-03-06 16:49:45",
+      "lastSignedIn": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\torganizationId\tslot\tusername\tpasswordHash\tdisplayName\trole\tactive\tcreatedAt\tupdatedAt\tlastSignedIn\n1\t1\t0\tsuperadmin\t$2b$10$FD9nYjMGP5l68Hg7lbgzjuBsE0BioDyy5X.i99/vZGqh0SP/S5lm2\tSuper Admin\tsuper_admin\t1\t2026-03-06 16:49:44\t2026-03-06 17:06:47\t2026-03-06 17:06:48\n2\t1\t1\tuser1_org1\t$2b$10$IdvezPDYlaOBwYd8PYDdFurRX2ZS2IoVvDi7pRk6Kd5BBVbNba/PO\tUsuário 1\tuser\t1\t2026-03-06 16:49:45\t2026-03-06 16:49:45\tNULL\n3\t1\t2\tuser2_org1\t$2b$10$SHOBfvHN60PFSrpDwgXgNe9omtmWbRj78oh/BqynOEEubNmb.VHFO\tUsuário 2\tuser\t1\t2026-03-06 16:49:45\t2026-03-06 16:49:45\tNULL\n4\t1\t3\tuser3_org1\t$2b$10$IHEqWz6q4SnE3HrlJCn8uesTdZTlzOf0uRk0QAnTZjlyYoWJSxDwm\tUsuário 3\tuser\t1\t2026-03-06 16:49:45\t2026-03-06 16:49:45\tNULL\n5\t1\t4\tuser4_org1\t$2b$10$DlEZKeL4Kv8vmNuTj4k6ROGB3SRod/5ekbB6j/PusS6Opr3F1Y6ky\tUsuário 4\tuser\t1\t2026-03-06 16:49:45\t2026-03-06 16:49:45\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 62
+}

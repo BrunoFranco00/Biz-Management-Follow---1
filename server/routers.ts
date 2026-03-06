@@ -503,32 +503,50 @@ export const appRouter = router({
 
   // ─── ADMIN (org-level) ─────────────────────────────────────────────────────
   admin: router({
-    getUsers: adminProcedure.query(async ({ ctx }) => {
-      const orgId = requireOrg(ctx.user);
-      return getAllUsers(orgId);
-    }),
-
-    getDashboard: adminProcedure
-      .input(z.object({ userId: z.number().optional(), weekStart: z.string().optional(), weekEnd: z.string().optional() }))
+    getUsers: adminProcedure
+      .input(z.object({ organizationId: z.number().optional() }))
       .query(async ({ ctx, input }) => {
-        const orgId = requireOrg(ctx.user);
-        return getAdminDashboardStats(orgId, input);
+        // super_admin pode passar organizationId para ver outra org
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
+        return getAllUsers(orgId);
       }),
 
-    getAllOpportunities: adminProcedure.query(async ({ ctx }) => {
-      const orgId = requireOrg(ctx.user);
-      return getAllOpportunities(orgId);
-    }),
+    getDashboard: adminProcedure
+      .input(z.object({ organizationId: z.number().optional(), userId: z.number().optional(), weekStart: z.string().optional(), weekEnd: z.string().optional() }))
+      .query(async ({ ctx, input }) => {
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
+        const { organizationId: _oid, ...rest } = input;
+        return getAdminDashboardStats(orgId, rest);
+      }),
 
-    getAllStrategicActions: adminProcedure.query(async ({ ctx }) => {
-      const orgId = requireOrg(ctx.user);
-      return getAllStrategicActions(orgId);
-    }),
+    getAllOpportunities: adminProcedure
+      .input(z.object({ organizationId: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
+        return getAllOpportunities(orgId);
+      }),
+
+    getAllStrategicActions: adminProcedure
+      .input(z.object({ organizationId: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
+        return getAllStrategicActions(orgId);
+      }),
 
     getOpportunitiesStats: adminProcedure
-      .input(z.object({ userId: z.number().optional() }))
+      .input(z.object({ organizationId: z.number().optional(), userId: z.number().optional() }))
       .query(async ({ ctx, input }) => {
-        const orgId = requireOrg(ctx.user);
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
         return getOpportunitiesStats(orgId, input.userId);
       }),
 
@@ -537,23 +555,30 @@ export const appRouter = router({
       .query(async ({ input }) => getWeeklyReportsByUser(input.userId)),
 
     getAllDeals: adminProcedure
-      .input(z.object({ userId: z.number().optional(), status: z.string().optional(), regionId: z.number().optional() }))
+      .input(z.object({ organizationId: z.number().optional(), userId: z.number().optional(), status: z.string().optional(), regionId: z.number().optional() }))
       .query(async ({ ctx, input }) => {
-        const orgId = requireOrg(ctx.user);
-        return getAllDeals(orgId, input);
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
+        const { organizationId: _oid, ...rest } = input;
+        return getAllDeals(orgId, rest);
       }),
 
     getDealsStats: adminProcedure
-      .input(z.object({ userId: z.number().optional() }))
+      .input(z.object({ organizationId: z.number().optional(), userId: z.number().optional() }))
       .query(async ({ ctx, input }) => {
-        const orgId = requireOrg(ctx.user);
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
         return getDealsStats(orgId, input.userId);
       }),
 
     getAllCheckins: adminProcedure
-      .input(z.object({ userId: z.number().optional() }))
+      .input(z.object({ organizationId: z.number().optional(), userId: z.number().optional() }))
       .query(async ({ ctx, input }) => {
-        const orgId = requireOrg(ctx.user);
+        const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+          ? input.organizationId
+          : requireOrg(ctx.user);
         return getAllCheckins(orgId, input.userId);
       }),
 

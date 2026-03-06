@@ -39,7 +39,15 @@ import {
   User,
   Clock,
   AlertCircle,
+  Building2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 
@@ -53,15 +61,28 @@ export default function UserManagement() {
   const [resetOpen, setResetOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // Redirecionar se não for admin
-  if (localUser && localUser.role !== "admin") {
+  const isSuperAdmin = localUser?.role === "super_admin";
+  // super_admin pode selecionar qual org gerenciar
+  const [selectedOrgId, setSelectedOrgId] = useState<number | undefined>(localUser?.organizationId);
+  const { data: allOrgs } = trpc.superAdmin.listOrganizations.useQuery(undefined, { enabled: isSuperAdmin });
+
+  // Redirecionar se não for admin nem super_admin
+  if (localUser && localUser.role !== "admin" && localUser.role !== "super_admin") {
     navigate("/dashboard");
     return null;
   }
 
-  const { data: slots = [], refetch } = trpc.orgUsers.list.useQuery(undefined, {
-    enabled: !!localUser,
+  const orgIdForList = isSuperAdmin ? (selectedOrgId ?? 0) : 0;
+  // super_admin usa endpoint dedicado com organizationId; admin usa endpoint padrão
+  const { data: slotsAdmin = [], refetch: refetchAdmin } = trpc.orgUsers.list.useQuery(undefined, {
+    enabled: !!localUser && !isSuperAdmin,
   });
+  const { data: slotsSuperAdmin = [], refetch: refetchSuperAdmin } = trpc.orgUsers.superAdminList.useQuery(
+    { organizationId: orgIdForList },
+    { enabled: isSuperAdmin && !!orgIdForList }
+  );
+  const slots = isSuperAdmin ? slotsSuperAdmin : slotsAdmin;
+  const refetch = isSuperAdmin ? refetchSuperAdmin : refetchAdmin;
 
   const createBatch = trpc.orgUsers.createBatch.useMutation({
     onSuccess: () => {
@@ -110,7 +131,27 @@ export default function UserManagement() {
               Gerencie os slots de acesso da sua organização
             </p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Seletor de organização para super_admin */}
+            {isSuperAdmin && allOrgs && allOrgs.length > 0 && (
+              <Select
+                value={selectedOrgId ? String(selectedOrgId) : ""}
+                onValueChange={(v) => setSelectedOrgId(v ? parseInt(v) : undefined)}
+              >
+                <SelectTrigger className="w-52 border-purple-300/50">
+                  <Building2 className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
+                  <SelectValue placeholder="Selecionar organização" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allOrgs.map((org) => (
+                    <SelectItem key={org.id} value={String(org.id)}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
@@ -158,6 +199,7 @@ export default function UserManagement() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Stats cards */}

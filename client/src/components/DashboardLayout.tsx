@@ -115,9 +115,10 @@ function DashboardLayoutContent({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isSuperAdmin = user?.role === "super_admin";
   // Busca o nome da organização para exibir na sidebar
-  const { data: org } = trpc.organizations.mine.useQuery(undefined, { enabled: false });
+  const { data: org } = trpc.organizations.mine.useQuery(undefined, { enabled: !!user?.organizationId });
 
   const activeItem = [...sellerMenuItems, ...adminMenuItems].find(
     (item) => location === item.path || location.startsWith(item.path + "/")
@@ -153,8 +154,10 @@ function DashboardLayoutContent({
 
   const displayName = user?.displayName ?? user?.username ?? "Usuário";
   const initials = displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
-  const roleLabel = isAdmin ? "Admin" : "Vendedor";
-  const roleBadgeClass = isAdmin
+  const roleLabel = isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Vendedor";
+  const roleBadgeClass = isSuperAdmin
+    ? "border-purple-400/60 text-purple-300"
+    : isAdmin
     ? "border-[#c9a84c]/50 text-[#c9a84c]"
     : "border-sidebar-border text-sidebar-foreground/60";
 

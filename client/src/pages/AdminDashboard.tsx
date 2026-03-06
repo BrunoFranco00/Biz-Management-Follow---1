@@ -57,8 +57,14 @@ export default function AdminDashboard() {
   const { user } = useLocalAuth();
   const [, navigate] = useLocation();
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
+  const isSuperAdmin = user?.role === "super_admin";
+  // super_admin pode selecionar qual org visualizar
+  const [selectedOrgId, setSelectedOrgId] = useState<number | undefined>(user?.organizationId);
 
-  if (user && user.role !== "admin") {
+  // Busca lista de organizações para o super_admin
+  const { data: allOrgs } = trpc.superAdmin.listOrganizations.useQuery(undefined, { enabled: isSuperAdmin });
+
+  if (user && user.role !== "admin" && user.role !== "super_admin") {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -75,12 +81,16 @@ export default function AdminDashboard() {
     );
   }
 
-  const { data: users } = trpc.admin.getUsers.useQuery();
+  const orgIdParam = isSuperAdmin ? selectedOrgId : undefined;
+
+  const { data: users } = trpc.admin.getUsers.useQuery({ organizationId: orgIdParam });
   const { data: dashData } = trpc.admin.getDashboard.useQuery({
+    organizationId: orgIdParam,
     userId: selectedUserId !== "all" ? parseInt(selectedUserId) : undefined,
   });
-  const { data: allOpps } = trpc.admin.getAllOpportunities.useQuery();
+  const { data: allOpps } = trpc.admin.getAllOpportunities.useQuery({ organizationId: orgIdParam });
   const { data: oppStats } = trpc.admin.getOpportunitiesStats.useQuery({
+    organizationId: orgIdParam,
     userId: selectedUserId !== "all" ? parseInt(selectedUserId) : undefined,
   });
 
@@ -124,7 +134,26 @@ export default function AdminDashboard() {
               Visão consolidada de todos os vendedores
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {/* Seletor de organização para super_admin */}
+            {isSuperAdmin && allOrgs && allOrgs.length > 0 && (
+              <Select
+                value={selectedOrgId ? String(selectedOrgId) : ""}
+                onValueChange={(v) => { setSelectedOrgId(v ? parseInt(v) : undefined); setSelectedUserId("all"); }}
+              >
+                <SelectTrigger className="w-52 border-purple-300/50 bg-purple-50/10">
+                  <Building2 className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
+                  <SelectValue placeholder="Selecionar organização" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allOrgs.map((org) => (
+                    <SelectItem key={org.id} value={String(org.id)}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={selectedUserId} onValueChange={setSelectedUserId}>
               <SelectTrigger className="w-52">
                 <SelectValue placeholder="Todos os vendedores" />

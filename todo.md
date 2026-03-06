@@ -150,3 +150,10 @@
 - [ ] Tela de perfil do usuário: alterar nome e senha
 - [ ] Integrar auth local em todas as rotas protegidas
 - [ ] Ajustar DashboardLayout para exibir displayName e slot do usuário local
+
+## Bugs reportados (06/03/2026)
+
+- [x] Corrigir erro "An unexpected error occurred" ao clicar em + Negócios (backend OK, versão publicada desatualizada)
+- [x] Corrigir sidebar do super_admin: mostrar opções de Gestão e Painel Admin
+- [x] Super Admin deve acessar painel admin de TODAS as organizações com acesso completo
+- [x] Mostrar badge/role correto para super_admin no sidebar (não "Vendedor")
