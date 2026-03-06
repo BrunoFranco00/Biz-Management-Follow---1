@@ -157,3 +157,39 @@
 - [x] Corrigir sidebar do super_admin: mostrar opções de Gestão e Painel Admin
 - [x] Super Admin deve acessar painel admin de TODAS as organizações com acesso completo
 - [x] Mostrar badge/role correto para super_admin no sidebar (não "Vendedor")
+
+## v5 — Smart Grid (Planejamento Dinâmico)
+
+### Schema / Banco de Dados
+- [x] Tabela grid_templates (template de colunas por organização)
+- [x] Tabela grid_columns (colunas: nome, tipo, ordem, fórmula, config)
+- [x] Tabela grid_rows (linhas de dados por usuário)
+- [x] pnpm db:push para migrar
+
+### Backend (Routers)
+- [x] Router: grid.getTemplate (buscar template + colunas da org)
+- [x] Router: grid.saveTemplate (admin salva colunas)
+- [x] Router: grid.addColumn / updateColumn / deleteColumn
+- [x] Router: grid.getMyRows (usuário vê suas linhas)
+- [x] Router: grid.saveRow (usuário salva linha)
+- [x] Router: grid.deleteRow (usuário deleta linha)
+- [x] Router: grid.getAdminView (admin vê todos os usuários)
+- [x] Router: grid.getStats (cálculos: soma, média, %)
+- [x] Router: grid.getDashboardWidgets (widgets dinâmicos para dashboard)
+
+### Frontend - Admin
+- [x] Interface de configuração de colunas (tipos, fórmulas, cor)
+- [x] Tipos de coluna: texto, número, select, data, checkbox, fórmula
+- [x] Configuração de fórmulas: soma, média, %, média ponderada, total ponderado
+- [x] Visão consolidada: todos os usuários e seus dados
+
+### Frontend - Vendedor
+- [x] Interface moderna de preenchimento (não parece Excel)
+- [x] Cards por linha com campos inline editáveis
+- [x] Indicadores calculados em tempo real
+- [x] Visualização de totais e médias pessoais
+
+### Integração Dashboard
+- [x] Widgets dinâmicos gerados automaticamente das colunas do grid
+- [x] Cards de totais, médias e distribuições por coluna numérica
+- [x] Sidebar: item Smart Grid adicionado ao menu de Vendas

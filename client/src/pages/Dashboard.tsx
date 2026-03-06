@@ -16,8 +16,11 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
+  Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import {
   Area,
   AreaChart,
@@ -114,6 +117,10 @@ export default function Dashboard() {
   );
 
   const { data: oppStats } = trpc.opportunities.stats.useQuery();
+  const [, navigate] = useLocation();
+
+  // Smart Grid widgets
+  const { data: gridWidgets } = trpc.grid.getDashboardWidgets.useQuery();
 
   const saveKpis = trpc.kpis.upsert.useMutation({
     onSuccess: () => toast.success("KPIs salvos com sucesso"),
@@ -510,6 +517,53 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+        {/* Smart Grid Widgets — gerados automaticamente quando o admin configura colunas */}
+        {gridWidgets && gridWidgets.columns.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-amber-500/20 flex items-center justify-center">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <h2 className="text-sm font-semibold text-foreground">Smart Grid — Planejamento</h2>
+              </div>
+              <button
+                onClick={() => navigate("/smart-grid")}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Ver tudo
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {gridWidgets.columns.map((col) => {
+                const myStat = gridWidgets.myStats[col.id];
+                const orgStat = gridWidgets.orgStats[col.id];
+                return (
+                  <Card
+                    key={col.id}
+                    className="border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
+                    onClick={() => navigate("/smart-grid")}
+                  >
+                    <div className="h-1" style={{ backgroundColor: col.accentColor ?? "#f59e0b" }} />
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground truncate mb-1">{col.name}</p>
+                      <p className="text-xl font-bold text-foreground">
+                        {myStat?.sum ?? 0}
+                        {col.unit ? <span className="text-xs font-normal text-muted-foreground ml-1">{col.unit}</span> : null}
+                      </p>
+                      {orgStat && orgStat.sum !== myStat?.sum && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Org: {orgStat.sum}{col.unit ? ` ${col.unit}` : ""}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

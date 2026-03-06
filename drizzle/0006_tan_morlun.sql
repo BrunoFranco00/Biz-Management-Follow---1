@@ -1,0 +1,1 @@
+ALTER TABLE `grid_rows` MODIFY COLUMN `data` text NOT NULL;

@@ -394,6 +394,75 @@ export const weeklyCheckins = mysqlTable("weekly_checkins", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+// ─── SMART GRID (Planejamento Dinâmico) ────────────────────────────────────────
+// Template de colunas configurado pelo admin por organização
+export const gridTemplates = mysqlTable("grid_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  name: varchar("name", { length: 200 }).notNull().default("Planejamento"),
+  description: text("description"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+// Colunas do template (configuradas pelo admin)
+export const gridColumns = mysqlTable("grid_columns", {
+  id: int("id").autoincrement().primaryKey(),
+  templateId: int("templateId").notNull(),
+  organizationId: int("organizationId").notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  // Tipos: text, number, select, date, checkbox, formula
+  columnType: mysqlEnum("columnType", ["text", "number", "select", "date", "checkbox", "formula"]).default("text").notNull(),
+  // Para tipo select: JSON array de opções ["SP", "MG", "GO"]
+  selectOptions: text("selectOptions"),
+  // Para tipo formula: tipo de cálculo
+  formulaType: mysqlEnum("formulaType", [
+    "sum", "average", "percentage", "weighted_average",
+    "weighted_sum", "count", "max", "min", "custom"
+  ]),
+  // Para formula: qual coluna(s) usar (JSON: [colId1, colId2])
+  formulaSourceColumns: text("formulaSourceColumns"),
+  // Para weighted: coluna de peso
+  formulaWeightColumn: int("formulaWeightColumn"),
+  // Para percentage: base (coluna ou valor fixo)
+  formulaBase: varchar("formulaBase", { length: 100 }),
+  // Largura em px para o grid visual
+  width: int("width").default(150),
+  // Ordem de exibição
+  sortOrder: int("sortOrder").default(0).notNull(),
+  // Se a coluna é preenchível pelo usuário ou calculada
+  isEditable: boolean("isEditable").default(true).notNull(),
+  // Se deve aparecer no Dashboard como widget
+  showInDashboard: boolean("showInDashboard").default(false).notNull(),
+  // Cor de destaque (hex)
+  accentColor: varchar("accentColor", { length: 20 }),
+  // Unidade (ex: ha, R$, %)
+  unit: varchar("unit", { length: 20 }),
+  required: boolean("required").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+// Linhas de dados (cada linha = um registro do usuário)
+export const gridRows = mysqlTable("grid_rows", {
+  id: int("id").autoincrement().primaryKey(),
+  templateId: int("templateId").notNull(),
+  organizationId: int("organizationId").notNull(),
+  userId: int("userId").notNull(),   // orgUserId
+  rowOrder: int("rowOrder").default(0).notNull(),
+  // Todos os valores da linha em JSON: { colId: value, ... }
+  data: text("data").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type GridTemplate = typeof gridTemplates.$inferSelect;
+export type GridColumn = typeof gridColumns.$inferSelect;
+export type InsertGridColumn = typeof gridColumns.$inferInsert;
+export type GridRow = typeof gridRows.$inferSelect;
+export type InsertGridRow = typeof gridRows.$inferInsert;
+
 // ─── EXPORT TYPES ─────────────────────────────────────────────────────────────
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
 export type Opportunity = typeof opportunities.$inferSelect;

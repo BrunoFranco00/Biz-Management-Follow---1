@@ -42,6 +42,7 @@ import {
   Users,
   Zap,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -56,6 +57,7 @@ const sellerMenuItems = [
   { icon: BarChart3, label: "Atividades", path: "/activities" },
   { icon: BookOpen, label: "Objeções", path: "/objections" },
   { icon: Layers, label: "Planejamento", path: "/planning" },
+  { icon: Sparkles, label: "Smart Grid", path: "/smart-grid" },
   { icon: Zap, label: "Ações Estratégicas", path: "/strategic" },
   { icon: CheckCircle2, label: "Check-in Semanal", path: "/checkin" },
   { icon: FileText, label: "Relatório Semanal", path: "/report" },

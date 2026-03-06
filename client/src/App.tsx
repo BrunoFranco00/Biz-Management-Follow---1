@@ -11,6 +11,7 @@ import Opportunities from "./pages/Opportunities";
 import Activities from "./pages/Activities";
 import Objections from "./pages/Objections";
 import Planning from "./pages/Planning";
+import SmartGrid from "./pages/SmartGrid";
 import Strategic from "./pages/Strategic";
 import AdminDashboard from "./pages/AdminDashboard";
 import Settings from "./pages/Settings";
@@ -75,6 +76,7 @@ function Router() {
         <Route path="/activities" component={Activities} />
         <Route path="/objections" component={Objections} />
         <Route path="/planning" component={Planning} />
+        <Route path="/smart-grid" component={SmartGrid} />
         <Route path="/strategic" component={Strategic} />
         <Route path="/checkin" component={Checkin} />
         <Route path="/report" component={Report} />

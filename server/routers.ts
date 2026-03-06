@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { gridRouter } from "./routers/grid";
 import {
   createOrgUserSlots,
   hashPassword,
@@ -103,8 +104,8 @@ function requireOrg(user: { organizationId?: number | null; role: string }) {
 
 export const appRouter = router({
   system: systemRouter,
-
-  // ─── AUTH ──────────────────────────────────────────────────────────────────
+  grid: gridRouter,
+  // ─── AUTHH ──────────────────────────────────────────────────────────────────
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -797,4 +798,5 @@ export const appRouter = router({
       }),
   }),
 });
+
 export type AppRouter = typeof appRouter;
