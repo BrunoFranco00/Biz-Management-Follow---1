@@ -203,6 +203,30 @@ export const gridRouter = router({
       return { template, columns, byUser: Object.values(byUser), stats };
     }),
 
+  // Admin: salvar/editar linha de qualquer usuário
+  adminSaveRow: adminProcedure
+    .input(z.object({
+      id: z.number().optional(),
+      userId: z.number(),
+      rowOrder: z.number(),
+      data: z.record(z.string(), z.any()),
+      organizationId: z.number().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = (ctx.user.role === "super_admin" && input.organizationId)
+        ? input.organizationId
+        : requireOrg(ctx.user);
+      const template = await getOrCreateTemplate(orgId);
+      return upsertRow({
+        id: input.id,
+        templateId: template.id,
+        organizationId: orgId,
+        userId: input.userId,
+        rowOrder: input.rowOrder,
+        data: JSON.stringify(input.data),
+      });
+    }),
+
   // Admin: deletar linha de qualquer usuário
   adminDeleteRow: adminProcedure
     .input(z.object({ id: z.number() }))

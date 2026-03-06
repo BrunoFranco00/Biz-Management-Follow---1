@@ -193,3 +193,22 @@
 - [x] Widgets dinâmicos gerados automaticamente das colunas do grid
 - [x] Cards de totais, médias e distribuições por coluna numérica
 - [x] Sidebar: item Smart Grid adicionado ao menu de Vendas
+
+## v6 — Responsividade e Smart Grid Aprimorado
+
+### Responsividade
+- [ ] DashboardLayout: sidebar responsivo (mobile drawer, tablet colapsável, desktop fixo)
+- [ ] Sidebar: itens não se sobrepõem ao rolar em telas menores
+- [ ] Layout geral: adaptável a notebook, computador, mobile e tablet
+
+### Smart Grid — Correções
+- [ ] Super Admin pode editar células na aba "Meus Dados"
+- [ ] Super Admin pode ver a visão do vendedor (preview de como o vendedor vê)
+
+### Smart Grid — Melhorias
+- [ ] Ordenação nas abas "Meus Dados" e "Visão Consolidada" (alfabética, por estado, por usuário, maior/menor valor)
+- [ ] Exportação: PDF, imagem (PNG) e Excel em ambas as abas
+- [ ] Colunas fixas (sticky) na Visão Consolidada ao rolar horizontalmente
+- [ ] Opção de ocultar colunas e linhas
+- [ ] Cálculos automáticos (soma, multiplicação, etc.) com resultado exibido ACIMA do cabeçalho da coluna
+- [ ] Configuração de colunas: suporte a todos os tipos de cálculo (soma, subtração, multiplicação, divisão, %, média ponderada, etc.)
