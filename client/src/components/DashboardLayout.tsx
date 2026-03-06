@@ -116,7 +116,7 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "admin";
-  // org query uses the Manus OAuth user context — for local users we use organizationId from localAuth
+  // Busca o nome da organização para exibir na sidebar
   const { data: org } = trpc.organizations.mine.useQuery(undefined, { enabled: false });
 
   const activeItem = [...sellerMenuItems, ...adminMenuItems].find(

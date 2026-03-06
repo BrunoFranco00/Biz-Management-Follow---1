@@ -1,5 +1,4 @@
 import { useLocalAuth } from "@/contexts/LocalAuthContext";
-import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
@@ -72,7 +71,7 @@ export default function Home() {
             </span>
           </div>
           <Button
-            onClick={() => (window.location.href = getLoginUrl())}
+            onClick={() => navigate("/login")}
             className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
           >
             Entrar na Plataforma
@@ -115,7 +114,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
-                onClick={() => (window.location.href = getLoginUrl())}
+                onClick={() => navigate("/login")}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 px-8 h-12 text-base font-semibold shadow-lg"
               >
                 Acessar Plataforma

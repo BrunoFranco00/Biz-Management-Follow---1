@@ -20,7 +20,6 @@ const redirectToLocalLoginIfUnauthorized = (error: unknown) => {
   if (typeof window === "undefined") return;
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
   if (!isUnauthorized) return;
-  // Redirecionar para o login local em vez do OAuth Manus
   window.location.href = "/login";
 };
 
