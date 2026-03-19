@@ -3,6 +3,8 @@
  * Autenticação local para org_users — independente do OAuth Manus.
  * Fluxo: login com username+senha → JWT próprio → cookie "biz_local_session"
  */
+import { webcrypto } from "node:crypto";
+if (!globalThis.crypto) { globalThis.crypto = webcrypto as any; }
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { eq, and } from "drizzle-orm";

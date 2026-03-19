@@ -45,13 +45,9 @@ router.post("/login", async (req: Request, res: Response) => {
         organizationId: result.orgUser.organizationId,
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[LocalAuth] login error:", err);
-    return res.status(500).json({
-      error: "Erro interno no servidor",
-      _debug: err?.message ?? String(err),
-      _stack: err?.stack?.split("\n").slice(0, 5),
-    });
+    return res.status(500).json({ error: "Erro interno no servidor" });
   }
 });
 
