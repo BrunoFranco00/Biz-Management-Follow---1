@@ -118,3 +118,6 @@ client/public/__manus__/
 check_users.ts
 *.bak
 vite.config.ts.bak
+
+# Backups de banco
+*.sql

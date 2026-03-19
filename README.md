@@ -156,10 +156,10 @@ BUILT_IN_FORGE_API_KEY= # Chave das APIs internas Manus
 
 | Usuário | Senha | Role | Organização |
 |---------|-------|------|-------------|
-| `superadmin` | `Biz@102030` | Super Admin | — |
-| `admin_org1` | `Biz@102030` | Admin | Clinica GAMA |
-| `admin_org2` | `Biz@102030` | Admin | BFAGRO |
-| `User1` | `Biz@102030` | Usuário | (por org) |
+| `superadmin` | `[ver .env]` | Super Admin | — |
+| `admin_org1` | `[ver .env]` | Admin | Clinica GAMA |
+| `admin_org2` | `[ver .env]` | Admin | BFAGRO |
+| `User1` | `[ver .env]` | Usuário | (por org) |
 
 > ⚠️ **Altere as senhas padrão em produção.**
 
