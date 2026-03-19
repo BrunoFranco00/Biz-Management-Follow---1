@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { getDb } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -37,6 +38,38 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // Cookie parser (required for local auth)
   app.use(cookieParser());
+  // Health check — testa DB e variáveis de ambiente
+  app.get("/api/health", async (_req, res) => {
+    const dbUrl = process.env.DATABASE_URL;
+    const jwtSecret = process.env.JWT_SECRET;
+    let dbStatus = "not_configured";
+    let dbError: string | null = null;
+    if (dbUrl) {
+      try {
+        const db = await getDb();
+        if (db) {
+          const { sql } = await import("drizzle-orm");
+          await db.execute(sql`SELECT 1`);
+          dbStatus = "connected";
+        } else {
+          dbStatus = "init_failed";
+        }
+      } catch (err: any) {
+        dbStatus = "query_failed";
+        dbError = err?.message ?? String(err);
+      }
+    }
+    res.json({
+      status: dbStatus === "connected" ? "ok" : "degraded",
+      db: dbStatus,
+      dbError,
+      hasJwtSecret: !!jwtSecret,
+      hasDatabaseUrl: !!dbUrl,
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV,
+    });
+  });
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // Local auth routes (username/password for org_users)
